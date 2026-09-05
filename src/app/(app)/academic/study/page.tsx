@@ -1,0 +1,14 @@
+import { Clock3 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { ModuleSubnav } from "@/components/module-subnav";
+import { SectionCard } from "@/components/section-card";
+import { StatCard } from "@/components/stat-card";
+import { SubmitButton } from "@/components/submit-button";
+import { EmptyState } from "@/components/empty-state";
+import { StudyTimer } from "@/features/academic/study-timer";
+import { academicNav } from "@/features/academic/nav";
+import { addStudySession } from "@/features/academic/actions";
+import { requireModule } from "@/lib/auth";
+import { readableDateTime } from "@/lib/format";
+
+export default async function StudyPage(){const {supabase}=await requireModule("academic");const [coursesRes,sessionsRes]=await Promise.all([supabase.from("academic_courses").select("id,name").order("name"),supabase.from("academic_study_sessions").select("id,title,duration_minutes,notes,completed_at,academic_courses(name)").order("completed_at",{ascending:false}).limit(60)]);const courses=coursesRes.data??[];const sessions=sessionsRes.data??[];const week=sessions.filter((x:any)=>new Date(x.completed_at)>=new Date(Date.now()-7*86400000)).reduce((s:number,x:any)=>s+Number(x.duration_minutes),0);return <><PageHeader eyebrow="Kuliah" title="Study Mode" description="Focus timer dan riwayat belajar. Durasi sesi yang disimpan bisa dipakai untuk melihat kebiasaan belajar."/><ModuleSubnav items={academicNav}/><div className="grid gap-4 md:grid-cols-2"><StatCard label="Belajar 7 hari" value={`${week} menit`} icon={Clock3}/><StatCard label="Total sesi tersimpan" value={String(sessions.length)} icon={Clock3}/></div><div className="grid gap-6 xl:grid-cols-2"><StudyTimer/><SectionCard title="Simpan sesi belajar"><form action={addStudySession} className="space-y-3"><select className="field" name="course_id"><option value="">Umum</option>{courses.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}</select><input className="field" name="title" placeholder="Topik belajar" required/><input className="field" name="duration_minutes" type="number" min="1" defaultValue="25" required/><textarea className="field min-h-24" name="notes" placeholder="Apa yang dipelajari?"/><SubmitButton>Simpan sesi</SubmitButton></form></SectionCard></div><SectionCard title="Riwayat study session">{sessions.length===0?<EmptyState/>:<div className="table-wrap"><table className="table"><thead><tr><th>Waktu</th><th>Topik</th><th>Mata kuliah</th><th>Durasi</th><th>Catatan</th></tr></thead><tbody>{sessions.map((s:any)=><tr key={s.id}><td>{readableDateTime(s.completed_at)}</td><td className="font-bold">{s.title}</td><td>{s.academic_courses?.name||"Umum"}</td><td>{s.duration_minutes} menit</td><td>{s.notes||"-"}</td></tr>)}</tbody></table></div>}</SectionCard></>}

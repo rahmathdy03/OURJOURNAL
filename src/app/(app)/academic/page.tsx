@@ -1,0 +1,33 @@
+import Link from "next/link";
+import { BookOpen, CalendarDays, CheckCircle2, GraduationCap } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { ModuleSubnav } from "@/components/module-subnav";
+import { SectionCard } from "@/components/section-card";
+import { StatCard } from "@/components/stat-card";
+import { SubmitButton } from "@/components/submit-button";
+import { EmptyState } from "@/components/empty-state";
+import { ProgressBar } from "@/components/progress-bar";
+import { requireModule } from "@/lib/auth";
+import { readableDate, today, weekdayName } from "@/lib/format";
+import { academicNav } from "@/features/academic/nav";
+import { addAssignment, addCourse, addSchedule, toggleAssignment } from "@/features/academic/actions";
+
+export default async function AcademicPage({searchParams}:{searchParams:Promise<{success?:string}>}){
+ const {supabase}=await requireModule("academic");
+ const [coursesRes,assignRes,scheduleRes,sessionsRes]=await Promise.all([
+   supabase.from("academic_courses").select("id,code,name,lecturer,semester,credits").order("name"),
+   supabase.from("academic_assignments").select("id,course_id,title,description,due_date,priority,progress,is_done,academic_courses(name)").order("is_done").order("due_date").limit(80),
+   supabase.from("academic_schedules").select("id,weekday,start_time,end_time,room,meeting_url,academic_courses(name)").order("weekday").order("start_time"),
+   supabase.from("academic_study_sessions").select("duration_minutes,completed_at").gte("completed_at",new Date(Date.now()-7*86400000).toISOString())
+ ]);
+ const courses=coursesRes.data??[];const assignments=assignRes.data??[];const active=assignments.filter((x:any)=>!x.is_done);const schedules=scheduleRes.data??[];const study=(sessionsRes.data??[]).reduce((s:number,x:any)=>s+Number(x.duration_minutes),0);const params=await searchParams;
+ return <><PageHeader eyebrow="Modul Kuliah" title="Akademik" description="Jadwal, mata kuliah, tugas, workspace, catatan, materi, study session, nilai, target semester, dan kalender akademik."/>
+ <ModuleSubnav items={academicNav}/>{params.success&&<div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">Data akademik berhasil disimpan.</div>}
+ <div className="grid gap-4 md:grid-cols-4"><StatCard label="Mata kuliah" value={String(courses.length)} icon={GraduationCap}/><StatCard label="Tugas aktif" value={String(active.length)} icon={CheckCircle2}/><StatCard label="Jadwal mingguan" value={String(schedules.length)} icon={CalendarDays}/><StatCard label="Belajar 7 hari" value={`${study} menit`} icon={BookOpen}/></div>
+ <div className="grid gap-6 xl:grid-cols-3"><SectionCard title="Tambah mata kuliah"><form action={addCourse} className="space-y-3"><input className="field" name="code" placeholder="Kode matkul"/><input className="field" name="name" placeholder="Nama mata kuliah" required/><input className="field" name="lecturer" placeholder="Dosen"/><input className="field" name="semester" placeholder="Semester, mis. 2026/1"/><input className="field" name="credits" type="number" min="0" max="12" placeholder="SKS"/><SubmitButton>Tambah mata kuliah</SubmitButton></form></SectionCard>
+ <SectionCard title="Tambah tugas"><form action={addAssignment} className="space-y-3"><select className="field" name="course_id"><option value="">Tanpa mata kuliah</option>{courses.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}</select><input className="field" name="title" placeholder="Judul tugas" required/><textarea className="field min-h-20" name="description" placeholder="Deskripsi"/><input className="field" name="due_date" type="date" min={today()} required/><select className="field" name="priority"><option value="normal">Prioritas normal</option><option value="high">Tinggi</option><option value="low">Rendah</option></select><input type="hidden" name="progress" value="0"/><SubmitButton>Tambah tugas</SubmitButton></form></SectionCard>
+ <SectionCard title="Tambah jadwal"><form action={addSchedule} className="space-y-3"><select className="field" name="course_id"><option value="">Pilih mata kuliah</option>{courses.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select className="field" name="weekday">{[1,2,3,4,5,6,0].map(d=><option key={d} value={d}>{weekdayName(d)}</option>)}</select><div className="grid grid-cols-2 gap-2"><input className="field" name="start_time" type="time" required/><input className="field" name="end_time" type="time" required/></div><input className="field" name="room" placeholder="Ruangan"/><input className="field" name="meeting_url" type="url" placeholder="Link Meet/Zoom"/><SubmitButton>Tambah jadwal</SubmitButton></form></SectionCard></div>
+ <div className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]"><SectionCard title="Tugas & deadline" description="Klik tugas untuk workspace checklist dan progress.">{assignments.length===0?<EmptyState/>:<div className="space-y-2">{assignments.map((a:any)=><div key={a.id} className={`rounded-xl border border-black/5 p-4 ${a.is_done?"bg-neutral-50 opacity-60":"bg-white"}`}><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><Link href={`/academic/assignments/${a.id}`} className="font-black hover:text-orange-600">{a.title}</Link><p className="mt-1 text-xs text-neutral-500">{a.academic_courses?.name||"Umum"} · deadline {readableDate(a.due_date)}</p><div className="mt-2 w-56 max-w-full"><ProgressBar value={Number(a.progress)}/></div></div><form action={toggleAssignment}><input type="hidden" name="id" value={a.id}/><input type="hidden" name="done" value={String(a.is_done)}/><input type="hidden" name="progress" value={a.progress}/><button className="btn-soft">{a.is_done?"Buka lagi":"Selesai"}</button></form></div></div>)}</div>}</SectionCard>
+ <SectionCard title="Jadwal mingguan">{schedules.length===0?<EmptyState/>:<div className="space-y-2">{schedules.map((s:any)=><div key={s.id} className="rounded-xl bg-neutral-50 p-3"><div className="flex justify-between gap-3"><div><p className="font-bold">{s.academic_courses?.name||"Kegiatan"}</p><p className="text-xs text-neutral-500">{weekdayName(s.weekday)} · {String(s.start_time).slice(0,5)}–{String(s.end_time).slice(0,5)}</p></div><span className="pill">{s.room||"Online"}</span></div>{s.meeting_url&&<a href={s.meeting_url} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-orange-600">Buka link kelas →</a>}</div>)}</div>}</SectionCard></div>
+ </>;
+}

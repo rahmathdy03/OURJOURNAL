@@ -1,0 +1,1 @@
+export const academicNav=[{href:"/academic",label:"Overview"},{href:"/academic/materials",label:"Catatan & Materi"},{href:"/academic/study",label:"Study Mode"},{href:"/academic/planner",label:"Study Planner"},{href:"/academic/grades",label:"Nilai & Target"},{href:"/academic/calendar",label:"Kalender"}];

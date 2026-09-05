@@ -1,0 +1,1 @@
+export function EmptyState({ children = "Belum ada data." }: { children?: React.ReactNode }) { return <div className="rounded-xl border border-dashed border-black/10 bg-neutral-50 px-4 py-8 text-center text-sm text-neutral-500">{children}</div>; }

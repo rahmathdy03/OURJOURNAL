@@ -1,0 +1,1 @@
+export const kebabNav=[{href:"/kebab",label:"Overview"},{href:"/kebab/ingredients",label:"Bahan & Stok"},{href:"/kebab/recipes",label:"Resep"},{href:"/kebab/production",label:"Produksi"},{href:"/kebab/purchases",label:"Pembelian"},{href:"/kebab/stock",label:"Waste & Opname"}];

@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) { return <div className="panel p-6"><p className="text-sm font-bold text-red-600">Terjadi kesalahan</p><h1 className="mt-2 text-2xl font-black">Data belum bisa diproses</h1><p className="mt-2 text-sm text-neutral-500">{error.message}</p><button onClick={reset} className="btn-primary mt-5">Coba lagi</button></div>; }
