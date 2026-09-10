@@ -10,12 +10,39 @@ import { monthRange, readableDate, rupiah, today } from "@/lib/format";
 export default async function DashboardPage() {
   const { supabase, profile, modules } = await getProfileAndModules();
   const { start, end } = monthRange();
-  const [financeRes, shoppingRes, assignmentsRes, budgetsRes, eventsRes] = await Promise.all([
-    modules.includes("finance") ? supabase.from("finance_transactions").select("id,kind,amount,description,category,transaction_date").gte("transaction_date", start).lt("transaction_date", end).order("transaction_date", { ascending: false }) : Promise.resolve({ data: [] as any[] }),
-    modules.includes("shopping") ? supabase.from("shopping_entries").select("id,total_amount,item_name,purchased_at").gte("purchased_at", start).lt("purchased_at", end).order("purchased_at", { ascending: false }) : Promise.resolve({ data: [] as any[] }),
-    modules.includes("academic") ? supabase.from("academic_assignments").select("id,title,due_date,is_done,priority").eq("is_done", false).gte("due_date", today()).order("due_date").limit(5) : Promise.resolve({ data: [] as any[] }),
-    modules.includes("finance") ? supabase.from("finance_budgets").select("amount,category").eq("month", start) : Promise.resolve({ data: [] as any[] }),
-    modules.includes("academic") ? supabase.from("academic_events").select("id,title,starts_at,event_type").gte("starts_at", new Date().toISOString()).order("starts_at").limit(4) : Promise.resolve({ data: [] as any[] }),
+
+  // Keep every dashboard data request in the same parallel batch. Previously the
+  // kebab cards waited for all other modules first, adding a full extra round trip.
+  const [
+    financeRes,
+    shoppingRes,
+    assignmentsRes,
+    budgetsRes,
+    eventsRes,
+    ingredientsRes,
+    prodRes,
+  ] = await Promise.all([
+    modules.includes("finance")
+      ? supabase.from("finance_transactions").select("id,kind,amount,description,category,transaction_date").gte("transaction_date", start).lt("transaction_date", end).order("transaction_date", { ascending: false })
+      : Promise.resolve({ data: [] as any[] }),
+    modules.includes("shopping")
+      ? supabase.from("shopping_entries").select("id,total_amount,item_name,purchased_at").gte("purchased_at", start).lt("purchased_at", end).order("purchased_at", { ascending: false })
+      : Promise.resolve({ data: [] as any[] }),
+    modules.includes("academic")
+      ? supabase.from("academic_assignments").select("id,title,due_date,is_done,priority").eq("is_done", false).gte("due_date", today()).order("due_date").limit(5)
+      : Promise.resolve({ data: [] as any[] }),
+    modules.includes("finance")
+      ? supabase.from("finance_budgets").select("amount,category").eq("month", start)
+      : Promise.resolve({ data: [] as any[] }),
+    modules.includes("academic")
+      ? supabase.from("academic_events").select("id,title,starts_at,event_type").gte("starts_at", new Date().toISOString()).order("starts_at").limit(4)
+      : Promise.resolve({ data: [] as any[] }),
+    modules.includes("kebab")
+      ? supabase.from("kebab_ingredients").select("id,name,unit,stock_quantity,low_stock_threshold,expires_at").order("name")
+      : Promise.resolve({ data: [] as any[] }),
+    modules.includes("kebab")
+      ? supabase.from("kebab_productions").select("quantity").eq("production_date", today())
+      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   const finance = financeRes.data ?? [];
@@ -27,18 +54,12 @@ export default async function DashboardPage() {
   const totalBudget = Number(budgetRows.find((x:any)=>x.category==="Total")?.amount ?? budgetRows.reduce((s:number,x:any)=>s+Number(x.amount),0));
   const used = expense + shoppingTotal;
 
-  let lowStock:any[]=[]; let expiring:any[]=[]; let productionToday=0;
-  if (modules.includes("kebab")) {
-    const [ingredientsRes, prodRes] = await Promise.all([
-      supabase.from("kebab_ingredients").select("id,name,unit,stock_quantity,low_stock_threshold,expires_at").order("name"),
-      supabase.from("kebab_productions").select("quantity").eq("production_date", today()),
-    ]);
-    const ingredients=ingredientsRes.data??[];
-    lowStock=ingredients.filter((x:any)=>Number(x.stock_quantity)<=Number(x.low_stock_threshold));
-    const sevenDays=new Date(); sevenDays.setDate(sevenDays.getDate()+7);
-    expiring=ingredients.filter((x:any)=>x.expires_at && new Date(`${x.expires_at}T23:59:59`)<=sevenDays);
-    productionToday=(prodRes.data??[]).reduce((s:number,x:any)=>s+Number(x.quantity),0);
-  }
+  const ingredients = ingredientsRes.data ?? [];
+  const lowStock = ingredients.filter((x:any)=>Number(x.stock_quantity)<=Number(x.low_stock_threshold));
+  const sevenDays = new Date();
+  sevenDays.setDate(sevenDays.getDate()+7);
+  const expiring = ingredients.filter((x:any)=>x.expires_at && new Date(`${x.expires_at}T23:59:59`)<=sevenDays);
+  const productionToday = (prodRes.data??[]).reduce((s:number,x:any)=>s+Number(x.quantity),0);
 
   return <>
     <PageHeader eyebrow="Ringkasan pribadi" title={`Dashboard ${profile?.display_name ?? ""}`} description="Dashboard utama netral. Keuangan, kuliah, belanja, dan modul khusus hanya tampil sesuai akses akun." action={<span className="pill">Bulan berjalan</span>}/>
