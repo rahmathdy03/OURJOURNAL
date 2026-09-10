@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, GraduationCap } from "lucide-react";
 
+import { ThesisDesktopWorkspace } from "@/components/thesis-desktop-workspace";
 import { ThesisIntro } from "@/components/thesis-intro";
 import { ThesisMobileWorkspace } from "@/components/thesis-mobile-workspace";
 import { validThesisTab } from "@/features/academic/thesis-nav";
@@ -76,18 +77,25 @@ export default async function ThesisPage({
     rows = (await supabase.from("thesis_milestones").select("*").order("position").order("target_date").limit(120)).data ?? [];
   }
 
+  const sharedProps = {
+    tab,
+    firstName,
+    workspace,
+    rows,
+    overview,
+    saved: params.saved,
+    error: params.error,
+  };
+
   return (
     <>
       <ThesisIntro show={params.intro === "1"} />
-      <ThesisMobileWorkspace
-        tab={tab}
-        firstName={firstName}
-        workspace={workspace}
-        rows={rows}
-        overview={overview}
-        saved={params.saved}
-        error={params.error}
-      />
+      <div className="lg:hidden">
+        <ThesisMobileWorkspace {...sharedProps} />
+      </div>
+      <div className="hidden lg:block">
+        <ThesisDesktopWorkspace {...sharedProps} />
+      </div>
     </>
   );
 }
