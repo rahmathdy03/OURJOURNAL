@@ -102,7 +102,7 @@ export async function updateThesisSupervisionDetail(formData: FormData) {
     const { error: taskError } = await supabase.from("thesis_tasks").insert({
       user_id: userId,
       title,
-      details: `Dari bimbingan: ${supervision.topic || "Bimbingan Skripsi"}`,
+      details: `Dari bimbingan: ${supervision?.topic || "Bimbingan Skripsi"}`,
       due_at: dueAt,
       priority: "high",
       focus_minutes: 45,
