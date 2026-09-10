@@ -1,5 +1,14 @@
 -- WhatsApp Kebab v1
--- Adds idempotency tracking and service-role-only helpers for verified Meta webhooks.
+--
+-- Konsep operasional:
+-- - Produksi hanya mengurangi bahan yang memang dimasukkan ke komposisi Resep di website.
+--   Untuk Finka, resep sebaiknya hanya berisi bahan yang jumlahnya benar-benar tetap
+--   (misalnya Beef, Kulit Kebab, dan Kertas Kebab).
+-- - Bahan yang pemakaiannya berubah-ubah (Mayones, Saus, Minyak Goreng, dll.)
+--   dicatat sebagai pemakaian aktual melalui perintah WhatsApp `pakai | Nama | jumlah`.
+--
+-- Migration ini menambahkan idempotency tracking dan helper service-role-only
+-- untuk webhook Meta yang sudah diverifikasi.
 
 create table if not exists public.whatsapp_processed_messages (
   message_id text primary key,
@@ -16,8 +25,8 @@ grant select, insert, delete on table public.whatsapp_processed_messages to serv
 create index if not exists whatsapp_processed_messages_user_time_idx
   on public.whatsapp_processed_messages(user_id, processed_at desc);
 
--- Add an ingredient from a verified WhatsApp webhook.
--- Initial stock is also written to stock movement history so the audit trail stays complete.
+-- Tambah bahan dari webhook WhatsApp yang terverifikasi.
+-- Stok awal juga dicatat ke histori movement supaya audit trail tetap lengkap.
 create or replace function public.admin_add_kebab_ingredient(
   p_user_id uuid,
   p_name text,
@@ -112,7 +121,8 @@ revoke all on function public.admin_add_kebab_ingredient(uuid,text,text,numeric,
 grant execute on function public.admin_add_kebab_ingredient(uuid,text,text,numeric,numeric)
   to service_role;
 
--- Atomic stock movement for a verified WhatsApp webhook.
+-- Pergerakan stok atomik untuk webhook WhatsApp yang terverifikasi.
+-- Dipakai oleh `pakai` (out) dan `tambah stok` (in).
 create or replace function public.admin_record_kebab_stock_movement(
   p_user_id uuid,
   p_ingredient_id uuid,
