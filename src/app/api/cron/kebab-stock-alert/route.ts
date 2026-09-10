@@ -31,6 +31,15 @@ function formatQuantity(value: number) {
   }).format(value);
 }
 
+function shouldDeleteSubscription(error: unknown) {
+  return (
+    error instanceof WebPushError &&
+    (error.statusCode === 404 ||
+      error.statusCode === 410 ||
+      (error.statusCode === 400 && error.message.includes("VapidPkHashMismatch")))
+  );
+}
+
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
@@ -161,10 +170,7 @@ export async function GET(request: Request) {
         pushesSent += 1;
         deliveredForUser = true;
       } catch (error) {
-        if (
-          error instanceof WebPushError &&
-          (error.statusCode === 404 || error.statusCode === 410)
-        ) {
+        if (shouldDeleteSubscription(error)) {
           await admin
             .from("push_subscriptions")
             .delete()
