@@ -72,6 +72,47 @@ export async function addThesisSupervision(formData: FormData) {
   }, "bimbingan");
 }
 
+export async function updateThesisSupervisionDetail(formData: FormData) {
+  const id = text(formData, "id");
+  const field = text(formData, "field");
+  const content = text(formData, "content");
+  if (!id || !["notes", "revision"].includes(field) || !content) {
+    go("bimbingan", false, "Pilih bimbingan dan isi catatan terlebih dahulu.");
+  }
+
+  const { supabase, userId } = await requireModule("academic");
+  const { data: supervision, error: readError } = await supabase
+    .from("thesis_supervisions")
+    .select("id,topic,scheduled_at")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (readError || !supervision) go("bimbingan", false, readError?.message || "Bimbingan tidak ditemukan.");
+
+  const { error } = await supabase
+    .from("thesis_supervisions")
+    .update({ [field]: content })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) go("bimbingan", false, error.message);
+
+  if (field === "revision" && formData.get("create_task") === "on") {
+    const dueAt = optionalDateTimeLocal(text(formData, "due_at"));
+    const title = text(formData, "task_title") || content.split(/\n/)[0].slice(0, 120) || "Revisi bimbingan";
+    const { error: taskError } = await supabase.from("thesis_tasks").insert({
+      user_id: userId,
+      title,
+      details: `Dari bimbingan: ${supervision.topic || "Bimbingan Skripsi"}`,
+      due_at: dueAt,
+      priority: "high",
+      focus_minutes: 45,
+    });
+    if (taskError) go("bimbingan", false, taskError.message);
+  }
+
+  go("bimbingan", true);
+}
+
 export async function addThesisResearchStep(formData: FormData) {
   await insertRow("thesis_research_steps", {
     title: text(formData, "title"),
@@ -80,6 +121,20 @@ export async function addThesisResearchStep(formData: FormData) {
     status: text(formData, "status") || "todo",
     position: toInt(text(formData, "position"), 0),
   }, "penelitian");
+}
+
+export async function updateThesisResearchDescription(formData: FormData) {
+  const id = text(formData, "id");
+  const description = text(formData, "description");
+  if (!id || !description) go("penelitian", false, "Pilih tahap penelitian dan isi catatan.");
+  const { supabase, userId } = await requireModule("academic");
+  const { error } = await supabase
+    .from("thesis_research_steps")
+    .update({ description })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) go("penelitian", false, error.message);
+  go("penelitian", true);
 }
 
 export async function addThesisReference(formData: FormData) {
