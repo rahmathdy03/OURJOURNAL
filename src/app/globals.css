@@ -174,13 +174,28 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
+@keyframes thesis-float {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-10px) rotate(1.5deg); }
+}
+
+@keyframes thesis-spark {
+  0%, 100% { transform: scale(.86) rotate(-8deg); opacity: .55; }
+  50% { transform: scale(1.16) rotate(8deg); opacity: 1; }
+}
+
+.thesis-float { animation: thesis-float 2.4s ease-in-out infinite; }
+.thesis-spark { animation: thesis-spark 1.2s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .liquid-glass-indicator,
   .liquid-nav-icon {
     transition-duration: 1ms !important;
   }
 
-  .liquid-glass-indicator::after {
+  .liquid-glass-indicator::after,
+  .thesis-float,
+  .thesis-spark {
     animation: none !important;
   }
 }
