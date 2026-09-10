@@ -1,6 +1,5 @@
 import { requireModule } from "@/lib/auth";
 import { KebabFinkaQuickClient } from "./quick-client";
-import { PushTestButton } from "./push-test-button";
 
 export const dynamic = "force-dynamic";
 
@@ -70,16 +69,13 @@ export default async function KebabFinkaPage() {
   );
 
   return (
-    <>
-      <KebabFinkaQuickClient
-        displayName={profile?.display_name || "Finka"}
-        initialIngredients={ingredients}
-        recipes={recipes}
-        fixedIngredientIds={fixedIngredientIds}
-        initialTodayProduction={todayProduction}
-        today={today}
-      />
-      <PushTestButton />
-    </>
+    <KebabFinkaQuickClient
+      displayName={profile?.display_name || "Finka"}
+      initialIngredients={ingredients}
+      recipes={recipes}
+      fixedIngredientIds={fixedIngredientIds}
+      initialTodayProduction={todayProduction}
+      today={today}
+    />
   );
 }
