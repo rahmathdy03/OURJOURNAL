@@ -9,7 +9,9 @@ const MAX_MESSAGES = 10;
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_TOTAL_CHARS = 12000;
 const DEFAULT_MODEL = "gemini-3.6-flash";
-const FALLBACK_MODEL = "gemini-3.5-flash-lite";
+const MODEL_CHOICES = ["gemini-3.6-flash", "gemini-3.1-flash-lite"] as const;
+
+type SupportedModel = (typeof MODEL_CHOICES)[number];
 
 const SYSTEM_PROMPT = `Kamu adalah OJ AI, study buddy di aplikasi pribadi OURJOURNAL.
 Utamakan bantuan untuk kuliah dan skripsi: menjelaskan konsep, merangkum teks yang diberikan user, menyusun pertanyaan bimbingan, memecah revisi menjadi target, membuat soal latihan, membantu metodologi penelitian secara umum, dan merapikan rencana belajar.
@@ -32,6 +34,10 @@ type ProviderError = {
   status?: string;
   message?: string;
 };
+
+function isSupportedModel(value: unknown): value is SupportedModel {
+  return typeof value === "string" && MODEL_CHOICES.includes(value as SupportedModel);
+}
 
 function pageContext(pathname: string) {
   if (pathname.startsWith("/academic/thesis")) {
@@ -68,7 +74,12 @@ function sanitizeProviderMessage(message: string, apiKey: string) {
     .slice(0, 280);
 }
 
-function friendlyProviderError(httpStatus: number, provider: ProviderError, apiKey: string) {
+function friendlyProviderError(
+  httpStatus: number,
+  provider: ProviderError,
+  apiKey: string,
+  model: string
+) {
   const providerStatus = provider.status || `HTTP_${httpStatus}`;
   const detail = sanitizeProviderMessage(provider.message || "", apiKey);
 
@@ -82,10 +93,10 @@ function friendlyProviderError(httpStatus: number, provider: ProviderError, apiK
     return `Gemini tidak mengizinkan API key ini (${providerStatus}). ${detail || "Periksa restriction/API access pada key di Google AI Studio."}`;
   }
   if (httpStatus === 404) {
-    return `Model Gemini tidak tersedia (${providerStatus}). ${detail || "Coba model default OURJOURNAL."}`;
+    return `Model Gemini tidak tersedia (${providerStatus}). ${detail || "Pilih model Gemini lain di OJ AI."}`;
   }
   if (httpStatus === 429) {
-    return `Kuota Gemini sedang penuh (${providerStatus}). Coba lagi sebentar.`;
+    return `Kuota ${model} sedang penuh (${providerStatus}). Coba pilih model lain di OJ AI atau tunggu kuotanya reset.`;
   }
 
   return `Gemini error ${httpStatus} (${providerStatus}). ${detail || "Coba lagi sebentar."}`;
@@ -157,7 +168,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { messages?: IncomingMessage[]; pathname?: unknown };
+  let body: { messages?: IncomingMessage[]; pathname?: unknown; model?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -179,25 +190,28 @@ export async function POST(request: Request) {
   }
 
   const pathname = typeof body.pathname === "string" ? body.pathname.slice(0, 200) : "";
-  const configuredModel = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
+  const envModel = process.env.GEMINI_MODEL?.trim();
+  const selectedModel: SupportedModel = isSupportedModel(body.model)
+    ? body.model
+    : isSupportedModel(envModel)
+      ? envModel
+      : DEFAULT_MODEL;
 
   try {
-    let model = configuredModel;
+    let model: SupportedModel = selectedModel;
     let response = await callGemini({ apiKey, model, messages, pathname });
 
-    if (response.status === 404 && model !== DEFAULT_MODEL) {
-      model = DEFAULT_MODEL;
-      response = await callGemini({ apiKey, model, messages, pathname });
-    }
-
-    if (response.status === 404 && model !== FALLBACK_MODEL) {
-      model = FALLBACK_MODEL;
-      response = await callGemini({ apiKey, model, messages, pathname });
+    if (response.status === 404) {
+      const alternate = MODEL_CHOICES.find((choice) => choice !== model);
+      if (alternate) {
+        model = alternate;
+        response = await callGemini({ apiKey, model, messages, pathname });
+      }
     }
 
     if (!response.ok) {
       const providerError = await readProviderError(response);
-      const safeError = friendlyProviderError(response.status, providerError, apiKey);
+      const safeError = friendlyProviderError(response.status, providerError, apiKey, model);
       console.error("Gemini API error", {
         httpStatus: response.status,
         providerStatus: providerError.status,
