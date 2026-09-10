@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   Bell,
   BookOpenCheck,
@@ -54,6 +59,16 @@ export function MobileAppChrome({
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const navTrackRef = useRef<HTMLDivElement | null>(null);
+  const suppressClickRef = useRef(false);
+  const gestureRef = useRef({
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    moved: false,
+  });
 
   useEffect(() => {
     setPendingHref(null);
@@ -77,6 +92,14 @@ export function MobileAppChrome({
   const primaryHrefs = new Set(primary.map((item) => item.href));
   const secondary = available.filter((item) => !primaryHrefs.has(item.href));
   const activePath = pendingHref || pathname;
+  const slotCount = primary.length + 1;
+
+  const primaryActiveIndex = primary.findIndex((item) =>
+    isActive(activePath, item.href)
+  );
+  const restingIndex = primaryActiveIndex >= 0 ? primaryActiveIndex : primary.length;
+  const visualPosition = dragPosition ?? restingIndex;
+  const visualIndex = Math.round(visualPosition);
 
   const current =
     available.find((item) => isActive(activePath, item.href)) ?? dashboard;
@@ -90,6 +113,106 @@ export function MobileAppChrome({
   function beginNavigation(href: string) {
     if (!isActive(pathname, href)) setPendingHref(href);
     setMoreOpen(false);
+  }
+
+  function navigateTo(href: string) {
+    warmRoute(href);
+    if (isActive(pathname, href)) return;
+    beginNavigation(href);
+    router.push(href);
+  }
+
+  function positionForClientX(clientX: number) {
+    const track = navTrackRef.current;
+    if (!track) return restingIndex;
+    const rect = track.getBoundingClientRect();
+    const slotWidth = rect.width / slotCount;
+    const raw = (clientX - rect.left) / slotWidth - 0.5;
+    return Math.max(0, Math.min(slotCount - 1, raw));
+  }
+
+  function warmIndex(index: number) {
+    if (index >= 0 && index < primary.length) {
+      warmRoute(primary[index].href);
+    }
+  }
+
+  function handleNavPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    gestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+
+    navTrackRef.current?.setPointerCapture?.(event.pointerId);
+    const position = positionForClientX(event.clientX);
+    setDragPosition(position);
+    warmIndex(Math.round(position));
+  }
+
+  function handleNavPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current;
+    if (gesture.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - gesture.startX;
+    const dy = event.clientY - gesture.startY;
+
+    if (!gesture.moved && Math.abs(dx) > 7 && Math.abs(dx) > Math.abs(dy)) {
+      gesture.moved = true;
+      setDragging(true);
+    }
+
+    if (!gesture.moved) return;
+
+    event.preventDefault();
+    const position = positionForClientX(event.clientX);
+    setDragPosition(position);
+    warmIndex(Math.round(position));
+  }
+
+  function finishGesture(event: ReactPointerEvent<HTMLDivElement>, cancelled = false) {
+    const gesture = gestureRef.current;
+    if (gesture.pointerId !== event.pointerId) return;
+
+    const moved = gesture.moved;
+    const position = positionForClientX(event.clientX);
+    const index = Math.round(position);
+
+    gestureRef.current = {
+      pointerId: -1,
+      startX: 0,
+      startY: 0,
+      moved: false,
+    };
+
+    setDragging(false);
+    setDragPosition(null);
+
+    if (cancelled || !moved) return;
+
+    suppressClickRef.current = true;
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 80);
+
+    if (index < primary.length) {
+      navigateTo(primary[index].href);
+    } else {
+      setMoreOpen(true);
+    }
+  }
+
+  function handleTabClick(href: string) {
+    if (suppressClickRef.current) return;
+    navigateTo(href);
+  }
+
+  function handleMoreClick() {
+    if (suppressClickRef.current) return;
+    setMoreOpen(true);
   }
 
   return (
@@ -145,43 +268,62 @@ export function MobileAppChrome({
         </div>
       </header>
 
-      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-black/5 bg-white/94 px-2 pb-[calc(.45rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(0,0,0,.06)] backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
-          {primary.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(activePath, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch
-                onPointerEnter={() => warmRoute(item.href)}
-                onTouchStart={() => warmRoute(item.href)}
-                onClick={() => beginNavigation(item.href)}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-extrabold transition active:scale-95 ${
-                  active
-                    ? "bg-orange-50 text-orange-700"
-                    : "text-neutral-500"
-                }`}
-              >
-                <Icon size={20} strokeWidth={active ? 2.6 : 2} />
-                <span className="max-w-full truncate">{item.shortLabel}</span>
-              </Link>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => setMoreOpen(true)}
-            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-extrabold transition active:scale-95 ${
-              secondary.some((item) => isActive(activePath, item.href))
-                ? "bg-orange-50 text-orange-700"
-                : "text-neutral-500"
-            }`}
+      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(.55rem+env(safe-area-inset-bottom))] lg:hidden">
+        <div className="liquid-tab-shell mx-auto max-w-lg p-1.5">
+          <div
+            ref={navTrackRef}
+            className="liquid-tab-track relative grid min-h-[62px]"
+            style={{ gridTemplateColumns: `repeat(${slotCount}, minmax(0, 1fr))` }}
+            onPointerDown={handleNavPointerDown}
+            onPointerMove={handleNavPointerMove}
+            onPointerUp={(event) => finishGesture(event)}
+            onPointerCancel={(event) => finishGesture(event, true)}
           >
-            <MoreHorizontal size={21} />
-            Lainnya
-          </button>
+            <div
+              aria-hidden="true"
+              className={`liquid-glass-indicator ${dragging ? "is-dragging" : ""}`}
+              style={{
+                width: `${100 / slotCount}%`,
+                transform: `translate3d(${visualPosition * 100}%, 0, 0) scaleX(${dragging ? 1.08 : 1}) scaleY(${dragging ? 0.96 : 1})`,
+              }}
+            />
+
+            {primary.map((item, index) => {
+              const Icon = item.icon;
+              const active = visualIndex === index;
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onPointerEnter={() => warmRoute(item.href)}
+                  onFocus={() => warmRoute(item.href)}
+                  onClick={() => handleTabClick(item.href)}
+                  className={`liquid-nav-item ${active ? "is-active" : ""} flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[22px] px-1 text-[10px] font-extrabold transition-colors duration-200 ${
+                    active ? "text-orange-700" : "text-neutral-500"
+                  }`}
+                  aria-current={isActive(activePath, item.href) ? "page" : undefined}
+                >
+                  <span className="liquid-nav-icon transition-transform duration-200">
+                    <Icon size={20} strokeWidth={active ? 2.6 : 2} />
+                  </span>
+                  <span className="max-w-full truncate">{item.shortLabel}</span>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={handleMoreClick}
+              className={`liquid-nav-item ${visualIndex === primary.length ? "is-active" : ""} flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-[22px] px-1 text-[10px] font-extrabold transition-colors duration-200 ${
+                visualIndex === primary.length ? "text-orange-700" : "text-neutral-500"
+              }`}
+            >
+              <span className="liquid-nav-icon transition-transform duration-200">
+                <MoreHorizontal size={21} strokeWidth={visualIndex === primary.length ? 2.6 : 2} />
+              </span>
+              Lainnya
+            </button>
+          </div>
         </div>
       </nav>
 
