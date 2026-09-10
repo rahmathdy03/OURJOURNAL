@@ -11,6 +11,15 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function shouldDeleteSubscription(error: unknown) {
+  return (
+    error instanceof WebPushError &&
+    (error.statusCode === 404 ||
+      error.statusCode === 410 ||
+      (error.statusCode === 400 && error.message.includes("VapidPkHashMismatch")))
+  );
+}
+
 export async function POST() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -71,10 +80,7 @@ export async function POST() {
       });
       sent += 1;
     } catch (caught) {
-      if (
-        caught instanceof WebPushError &&
-        (caught.statusCode === 404 || caught.statusCode === 410)
-      ) {
+      if (shouldDeleteSubscription(caught)) {
         await admin.from("push_subscriptions").delete().eq("id", row.id);
       }
 
