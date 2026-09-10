@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export function AppPrefetch({
   modules,
@@ -9,36 +9,33 @@ export function AppPrefetch({
   modules: string[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    const routes: string[] = [];
+    const routes = [
+      "/dashboard",
+      ...(modules.includes("kebab") ? ["/kebab"] : []),
+      ...(modules.includes("finance") ? ["/finance"] : []),
+      ...(modules.includes("academic") ? ["/academic"] : []),
+      ...(modules.includes("shopping") ? ["/shopping"] : []),
+      "/reports",
+      "/notifications",
+      "/settings",
+    ].filter((route, index, list) => route !== pathname && list.indexOf(route) === index);
 
-    if (modules.includes("finance")) {
-      routes.push("/finance");
-    }
+    // Dashboard is the heaviest and most frequently revisited page, so warm it first.
+    const prioritized = routes.sort((a, b) => {
+      if (a === "/dashboard") return -1;
+      if (b === "/dashboard") return 1;
+      return 0;
+    });
 
-    if (modules.includes("shopping")) {
-      routes.push("/shopping");
-    }
+    const timers = prioritized.map((route, index) =>
+      window.setTimeout(() => router.prefetch(route), index * 90)
+    );
 
-    if (modules.includes("academic")) {
-      routes.push("/academic");
-    }
-
-    if (modules.includes("kebab")) {
-      routes.push("/kebab");
-    }
-
-    const timer = window.setTimeout(() => {
-      routes.forEach((route) => {
-        router.prefetch(route);
-      });
-    }, 1200);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [modules, router]);
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [modules, pathname, router]);
 
   return null;
 }
