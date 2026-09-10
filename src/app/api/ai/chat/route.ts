@@ -21,6 +21,11 @@ type IncomingMessage = {
   content?: unknown;
 };
 
+type GeminiMessage = {
+  role: "user" | "model";
+  content: string;
+};
+
 function pageContext(pathname: string) {
   if (pathname.startsWith("/academic/thesis")) {
     return "Konteks layar saat ini: Workspace Skripsi. Prioritaskan bantuan bimbingan, revisi, penelitian, referensi, target, dan timeline bila relevan.";
@@ -29,6 +34,19 @@ function pageContext(pathname: string) {
     return "Konteks layar saat ini: modul Kuliah. Prioritaskan penjelasan materi, rangkuman, soal latihan, tugas, dan jadwal belajar bila relevan.";
   }
   return "Konteks layar saat ini: OURJOURNAL. AI versi pertama terutama difokuskan untuk Kuliah dan Skripsi.";
+}
+
+function normalizeMessages(rawMessages: IncomingMessage[]) {
+  const normalized: GeminiMessage[] = rawMessages
+    .slice(-MAX_MESSAGES)
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      content: typeof message.content === "string" ? message.content.trim().slice(0, MAX_MESSAGE_CHARS) : "",
+    }))
+    .filter((message) => message.content.length > 0);
+
+  while (normalized[0]?.role === "model") normalized.shift();
+  return normalized;
 }
 
 export async function POST(request: Request) {
@@ -55,13 +73,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Payload tidak valid." }, { status: 400 });
   }
 
-  const rawMessages = Array.isArray(body.messages) ? body.messages.slice(-MAX_MESSAGES) : [];
-  const messages = rawMessages
-    .map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      content: typeof message.content === "string" ? message.content.trim().slice(0, MAX_MESSAGE_CHARS) : "",
-    }))
-    .filter((message) => message.content.length > 0);
+  const messages = normalizeMessages(Array.isArray(body.messages) ? body.messages : []);
 
   if (!messages.length) {
     return NextResponse.json({ error: "Tulis pertanyaan dulu ya." }, { status: 400 });
