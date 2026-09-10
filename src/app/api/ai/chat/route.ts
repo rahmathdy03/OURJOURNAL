@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 const MAX_MESSAGES = 10;
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_TOTAL_CHARS = 12000;
-const DEFAULT_MODEL = "gemini-2.5-flash-lite";
-const FALLBACK_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.6-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash-lite";
 
 const SYSTEM_PROMPT = `Kamu adalah OJ AI, study buddy di aplikasi pribadi OURJOURNAL.
 Utamakan bantuan untuk kuliah dan skripsi: menjelaskan konsep, merangkum teks yang diberikan user, menyusun pertanyaan bimbingan, memecah revisi menjadi target, membuat soal latihan, membantu metodologi penelitian secara umum, dan merapikan rencana belajar.
