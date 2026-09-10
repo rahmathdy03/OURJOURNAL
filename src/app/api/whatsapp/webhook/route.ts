@@ -733,13 +733,13 @@ function helpText() {
 
 PRODUKSI
 • produksi | Kebab Pcs | 50
-Hanya komposisi tetap yang ada di Resep website yang berkurang otomatis, misalnya Beef, Kulit Kebab, dan Kertas Kebab.
+Hanya bahan yang ada di komposisi Resep website yang berkurang otomatis. Untuk resep Kebab Pcs, masukkan hanya bahan yang pemakaiannya pasti seperti Beef, Kulit Kebab, dan Kertas Kebab.
 
 PEMAKAIAN AKTUAL
 • pakai | Mayones | 1,2
 • pakai | Saus | 0,8
 • pakai | Minyak Goreng | 1,5
-Gunakan ini untuk bahan yang pemakaiannya berubah-ubah. Jumlah mengikuti satuan bahan di website.
+Gunakan ini untuk bahan yang pemakaiannya berubah-ubah. Jumlah mengikuti satuan bahan di website. Contoh: jika Mayones memakai satuan Kg, angka 1,2 berarti 1,2 Kg.
 
 STOK
 • stok
