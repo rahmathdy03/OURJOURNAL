@@ -8,17 +8,44 @@ export function PushTestButton() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  async function syncSubscription() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      throw new Error("Push notification belum didukung di perangkat ini.");
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      throw new Error("Subscription push belum ada. Aktifkan notifikasi terlebih dahulu.");
+    }
+
+    const response = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(result.error || `Gagal sinkronkan subscription (${response.status}).`);
+    }
+  }
+
   async function testPush() {
     setBusy(true);
     setMessage(null);
     setError(null);
 
     try {
+      await syncSubscription();
+
       const response = await fetch("/api/push/test", { method: "POST" });
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(result.error || "Tes push gagal.");
+        throw new Error(result.error || `Tes push gagal (${response.status}).`);
       }
 
       setMessage(`Tes dikirim ke ${result.sent ?? 1} perangkat. Cek notifikasi HP.`);
@@ -39,7 +66,7 @@ export function PushTestButton() {
           className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 text-sm font-black disabled:opacity-60"
         >
           {busy ? <LoaderCircle className="animate-spin" size={18} /> : <BellRing size={18} />}
-          {busy ? "Mengirim tes..." : "Kirim Notifikasi Tes"}
+          {busy ? "Menyinkronkan & mengirim..." : "Kirim Notifikasi Tes"}
         </button>
         {message && <p className="mt-2 text-center text-xs font-bold text-emerald-300">{message}</p>}
         {error && <p className="mt-2 text-center text-xs font-bold text-rose-300">{error}</p>}
