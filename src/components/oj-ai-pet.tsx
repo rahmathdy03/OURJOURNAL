@@ -19,6 +19,7 @@ import {
   Sparkles,
   Target,
   X,
+  Zap,
 } from "lucide-react";
 
 type ChatMessage = {
@@ -31,8 +32,12 @@ type Point = {
   y: number;
 };
 
+type AIModel = "gemini-3.6-flash" | "gemini-3.1-flash-lite";
+
 const PET_SIZE = 78;
 const STORAGE_KEY = "ourjournal-ai-pet-position-v1";
+const MODEL_STORAGE_KEY = "ourjournal-ai-model-v1";
+const DEFAULT_AI_MODEL: AIModel = "gemini-3.1-flash-lite";
 
 function clampPosition(x: number, y: number, width: number, height: number): Point {
   const sidePadding = 10;
@@ -123,6 +128,10 @@ function PetAvatar({ compact = false }: { compact?: boolean }) {
   );
 }
 
+function modelLabel(model: AIModel) {
+  return model === "gemini-3.6-flash" ? "3.6 Flash" : "3.1 Flash-Lite";
+}
+
 export function OJAIPet({ firstName }: { firstName: string }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
@@ -132,6 +141,7 @@ export function OJAIPet({ firstName }: { firstName: string }) {
   const [showHint, setShowHint] = useState(true);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [model, setModel] = useState<AIModel>(DEFAULT_AI_MODEL);
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       role: "assistant",
@@ -169,6 +179,11 @@ export function OJAIPet({ firstName }: { firstName: string }) {
         }
       }
 
+      const savedModel = window.localStorage.getItem(MODEL_STORAGE_KEY);
+      if (savedModel === "gemini-3.6-flash" || savedModel === "gemini-3.1-flash-lite") {
+        setModel(savedModel);
+      }
+
       setPosition(next);
       setMounted(true);
     }
@@ -198,6 +213,11 @@ export function OJAIPet({ firstName }: { firstName: string }) {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }, 20);
   }, [messages, loading, open]);
+
+  function chooseModel(nextModel: AIModel) {
+    setModel(nextModel);
+    window.localStorage.setItem(MODEL_STORAGE_KEY, nextModel);
+  }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -271,6 +291,7 @@ export function OJAIPet({ firstName }: { firstName: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pathname,
+          model,
           messages: outgoing.slice(-10),
         }),
       });
@@ -365,7 +386,7 @@ export function OJAIPet({ firstName }: { firstName: string }) {
                     <h2 className="truncate text-base font-black text-neutral-950">OJ AI</h2>
                     <Sparkles size={14} className="text-violet-600" />
                   </div>
-                  <p className="truncate text-[10px] font-bold text-neutral-400">Study buddy · powered by Gemini</p>
+                  <p className="truncate text-[10px] font-bold text-neutral-400">Study buddy · {modelLabel(model)}</p>
                 </div>
               </div>
 
@@ -388,6 +409,40 @@ export function OJAIPet({ firstName }: { firstName: string }) {
                 </button>
               </div>
             </header>
+
+            <div className="border-b border-black/5 px-4 py-2.5">
+              <div className="grid grid-cols-2 gap-1 rounded-2xl bg-violet-50 p-1 ring-1 ring-violet-100">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => chooseModel("gemini-3.1-flash-lite")}
+                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-[11px] font-black transition active:scale-[.98] disabled:opacity-50 ${
+                    model === "gemini-3.1-flash-lite"
+                      ? "bg-white text-violet-700 shadow-sm ring-1 ring-violet-100"
+                      : "text-neutral-500"
+                  }`}
+                >
+                  <Zap size={13} />
+                  3.1 Flash-Lite
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => chooseModel("gemini-3.6-flash")}
+                  className={`flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-[11px] font-black transition active:scale-[.98] disabled:opacity-50 ${
+                    model === "gemini-3.6-flash"
+                      ? "bg-white text-violet-700 shadow-sm ring-1 ring-violet-100"
+                      : "text-neutral-500"
+                  }`}
+                >
+                  <Sparkles size={13} />
+                  3.6 Flash
+                </button>
+              </div>
+              <p className="mt-1.5 text-center text-[9px] font-semibold text-neutral-400">
+                3.1 Lite untuk pemakaian harian · 3.6 untuk tugas yang lebih kompleks
+              </p>
+            </div>
 
             <div className="border-b border-black/5 px-4 py-3">
               <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
