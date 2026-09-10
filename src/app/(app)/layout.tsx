@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/sidebar";
 import { MobileAppChrome } from "@/components/mobile-app-chrome";
 import { QueryProvider } from "@/components/query-provider";
 import { AppPrefetch } from "@/components/app-prefetch";
+import { OJAIPet } from "@/components/oj-ai-pet";
 
 import { getProfileAndModules } from "@/lib/auth";
 import { logout } from "@/features/auth/actions";
@@ -47,6 +48,8 @@ export default async function AppLayout({
           </main>
         </div>
       </div>
+
+      <OJAIPet firstName={name.trim().split(/\s+/)[0] || "Kamu"} />
     </QueryProvider>
   );
 }
