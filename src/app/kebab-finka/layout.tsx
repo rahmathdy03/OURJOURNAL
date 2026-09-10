@@ -2,8 +2,12 @@ import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "Kebab Finka",
+  applicationName: "Kebab Finka",
   description: "Quick Input operasional Kebab Finka",
   manifest: "/manifest.webmanifest",
+  formatDetection: {
+    telephone: false,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
