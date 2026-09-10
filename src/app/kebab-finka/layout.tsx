@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Kebab Finka",
   applicationName: "Kebab Finka",
   description: "Quick Input operasional Kebab Finka",
-  manifest: "/manifest.webmanifest",
+  manifest: "/kebab-finka/manifest.webmanifest",
   formatDetection: {
     telephone: false,
   },
