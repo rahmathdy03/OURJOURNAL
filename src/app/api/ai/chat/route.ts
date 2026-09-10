@@ -16,7 +16,11 @@ type SupportedModel = (typeof MODEL_CHOICES)[number];
 const SYSTEM_PROMPT = `Kamu adalah OJ AI, study buddy di aplikasi pribadi OURJOURNAL.
 Utamakan bantuan untuk kuliah dan skripsi: menjelaskan konsep, merangkum teks yang diberikan user, menyusun pertanyaan bimbingan, memecah revisi menjadi target, membuat soal latihan, membantu metodologi penelitian secara umum, dan merapikan rencana belajar.
 Jawab dalam Bahasa Indonesia kecuali user meminta bahasa lain. Gaya ramah, ringkas, praktis, dan tidak menggurui.
-Jangan mengaku bisa membaca Google Drive, file, database, atau data OURJOURNAL yang tidak diberikan dalam percakapan. Jika user ingin analisis dokumen, minta isi dokumen atau bagian yang ingin dianalisis.
+
+OURJOURNAL akan mengirim APP_CONTEXT berisi metadata halaman aktif. APP_CONTEXT adalah konteks aplikasi yang sengaja diberikan kepadamu dan BOLEH kamu gunakan sebagai fakta. Jika user bertanya "sekarang halaman apa?", "aku lagi di mana?", atau pertanyaan sejenis, jawab langsung berdasarkan APP_CONTEXT. Jangan mengatakan kamu tidak tahu halaman aktif jika APP_CONTEXT sudah menyebutkannya.
+Mengetahui nama halaman dari APP_CONTEXT berbeda dengan melihat layar. Kamu tetap tidak boleh mengaku melihat elemen visual, membaca isi card, database, Google Drive, file, atau data lain yang tidak dikirim ke percakapan atau APP_CONTEXT.
+Jika user meminta informasi yang belum diberikan, jelaskan batasannya secara singkat dan minta data yang relevan bila perlu.
+
 Untuk topik akademik, bantu berpikir dan menyusun, tetapi jangan mengarang sumber, DOI, kutipan, data penelitian, atau hasil eksperimen.
 Gunakan poin-poin hanya saat memang membantu keterbacaan.`;
 
@@ -40,13 +44,39 @@ function isSupportedModel(value: unknown): value is SupportedModel {
 }
 
 function pageContext(pathname: string) {
+  let pageName = "OURJOURNAL";
+  let guidance = "Gunakan hanya metadata halaman ini; jangan mengarang isi layar atau data yang belum dikirim.";
+
   if (pathname.startsWith("/academic/thesis")) {
-    return "Konteks layar saat ini: Workspace Skripsi. Prioritaskan bantuan bimbingan, revisi, penelitian, referensi, target, dan timeline bila relevan.";
+    pageName = "Workspace Skripsi";
+    guidance = "Prioritaskan bantuan bimbingan, revisi, penelitian, referensi, target, dan timeline bila relevan.";
+  } else if (pathname.startsWith("/academic")) {
+    pageName = "Kuliah";
+    guidance = "Prioritaskan penjelasan materi, rangkuman, soal latihan, tugas, dan jadwal belajar bila relevan.";
+  } else if (pathname.startsWith("/dashboard")) {
+    pageName = "Dashboard";
+    guidance = "Ini halaman ringkasan utama OURJOURNAL. Kamu tahu nama halamannya, tetapi belum tahu isi card atau datanya kecuali diberikan terpisah.";
+  } else if (pathname.startsWith("/finance")) {
+    pageName = "Keuangan";
+    guidance = "Prioritaskan bantuan pencatatan, perencanaan, dan penjelasan keuangan bila relevan, tanpa mengarang angka yang belum diberikan.";
+  } else if (pathname.startsWith("/shopping")) {
+    pageName = "Belanja";
+    guidance = "Prioritaskan bantuan daftar belanja dan perencanaan belanja bila relevan.";
+  } else if (pathname.startsWith("/kebab")) {
+    pageName = "Kebab";
+    guidance = "Prioritaskan bantuan operasional Kebab Finka bila relevan, tanpa mengarang stok atau transaksi yang belum diberikan.";
+  } else if (pathname.startsWith("/notifications")) {
+    pageName = "Notifikasi";
+    guidance = "Ini halaman notifikasi OURJOURNAL. Jangan mengarang isi notifikasi yang belum diberikan.";
+  } else if (pathname.startsWith("/reports")) {
+    pageName = "Laporan";
+    guidance = "Ini halaman laporan OURJOURNAL. Jangan mengarang angka atau ringkasan yang belum diberikan.";
+  } else if (pathname.startsWith("/settings")) {
+    pageName = "Pengaturan";
+    guidance = "Ini halaman pengaturan OURJOURNAL.";
   }
-  if (pathname.startsWith("/academic")) {
-    return "Konteks layar saat ini: modul Kuliah. Prioritaskan penjelasan materi, rangkuman, soal latihan, tugas, dan jadwal belajar bila relevan.";
-  }
-  return "Konteks layar saat ini: OURJOURNAL. AI versi pertama terutama difokuskan untuk Kuliah dan Skripsi.";
+
+  return `APP_CONTEXT (metadata aplikasi yang diberikan OURJOURNAL):\n- Halaman aktif: ${pageName}\n- Path: ${pathname || "/"}\n- Catatan: ${guidance}`;
 }
 
 function normalizeMessages(rawMessages: IncomingMessage[]) {
