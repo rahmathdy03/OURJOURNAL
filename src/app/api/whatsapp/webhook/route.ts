@@ -14,6 +14,11 @@ type Ingredient = {
   low_stock_threshold: number | string;
 };
 
+type Recipe = {
+  id: string;
+  name: string;
+};
+
 function validSignature(rawBody: string, signature: string | null) {
   const secret = process.env.META_APP_SECRET;
   if (!secret || !signature?.startsWith("sha256=")) return false;
@@ -22,7 +27,6 @@ function validSignature(rawBody: string, signature: string | null) {
   const received = signature.slice(7);
 
   if (expected.length !== received.length) return false;
-
   return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
 }
 
@@ -62,9 +66,7 @@ export async function POST(request: Request) {
       ?.flatMap((entry: any) => entry.changes ?? [])
       .flatMap((change: any) => change.value?.messages ?? []) ?? [];
 
-  if (!messages.length) {
-    return NextResponse.json({ ok: true });
-  }
+  if (!messages.length) return NextResponse.json({ ok: true });
 
   const admin = createAdminClient();
 
@@ -167,20 +169,16 @@ async function executeCommand(
   const normalized = text.trim();
   const lower = normalized.toLowerCase();
 
-  if (["help", "bantuan", "menu"].includes(lower)) {
-    return helpText();
-  }
+  if (["help", "bantuan", "menu"].includes(lower)) return helpText();
 
-  const money = lower.match(
+  const money = normalized.match(
     /^(pengeluaran|pemasukan|belanja)\s+([0-9.,]+\s*(?:rb|ribu|jt|juta)?)\s+(.+)$/i
   );
 
   if (money) {
-    const type = money[1];
+    const type = money[1].toLowerCase();
     const amount = parseMoney(money[2]);
-    const description = normalized.slice(
-      normalized.toLowerCase().indexOf(money[3])
-    );
+    const description = money[3].trim();
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return "Nominal belum terbaca. Contoh: pengeluaran 50rb bensin";
@@ -289,20 +287,18 @@ async function executeCommand(
     const name = addIngredient[1].trim();
     const unit = addIngredient[2].trim();
     const initialStock = parseQuantity(addIngredient[3]);
-    const minimum = addIngredient[4]
-      ? parseQuantity(addIngredient[4])
-      : 0;
+    const minimum = addIngredient[4] ? parseQuantity(addIngredient[4]) : 0;
 
     if (!name || !unit) {
-      return "Nama bahan dan satuan wajib diisi. Contoh: bahan | Mayones | gram | 5000";
+      return "Nama bahan dan satuan wajib diisi. Contoh: bahan | Mayones | Kg | 5";
     }
 
     if (!Number.isFinite(initialStock) || initialStock < 0) {
-      return "Stok awal belum terbaca. Contoh: bahan | Mayones | gram | 5000";
+      return "Stok awal belum terbaca. Contoh: bahan | Mayones | Kg | 5";
     }
 
     if (!Number.isFinite(minimum) || minimum < 0) {
-      return "Batas minimum belum terbaca. Contoh: bahan | Mayones | gram | 5000 | 500";
+      return "Batas minimum belum terbaca. Contoh: bahan | Mayones | Kg | 5 | 1";
     }
 
     const { error } = await admin.rpc("admin_add_kebab_ingredient", {
@@ -315,18 +311,20 @@ async function executeCommand(
 
     if (error) {
       if (error.message.toLowerCase().includes("bahan sudah ada")) {
-        return `Bahan “${name}” sudah ada. Gunakan *tambah stok | ${name} | jumlah* jika ingin menambah stok.`;
+        return `Bahan “${name}” sudah ada. Gunakan *tambah stok | ${name} | jumlah* untuk menambah stok.`;
       }
       return `Gagal menambah bahan: ${error.message}`;
     }
 
     return `✅ Bahan ${name} berhasil ditambahkan.\nStok awal: ${formatQuantity(
       initialStock
-    )} ${unit}${minimum > 0 ? `\nMinimum: ${formatQuantity(minimum)} ${unit}` : ""}.`;
+    )} ${unit}${
+      minimum > 0 ? `\nBatas minimum: ${formatQuantity(minimum)} ${unit}` : ""
+    }.`;
   }
 
   const useIngredient = normalized.match(
-    /^pakai\s*\|\s*(.+?)\s*\|\s*([^|]+?)\s*$/i
+    /^(?:pakai|terpakai)\s*\|\s*(.+?)\s*\|\s*([^|]+?)\s*$/i
   );
 
   if (useIngredient) {
@@ -338,7 +336,7 @@ async function executeCommand(
     const quantity = parseQuantity(useIngredient[2]);
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      return "Jumlah belum terbaca. Contoh: pakai | Mayones | 800";
+      return "Jumlah belum terbaca. Contoh: pakai | Mayones | 1,2";
     }
 
     const resolved = await resolveIngredient(admin, userId, name);
@@ -352,7 +350,7 @@ async function executeCommand(
       p_direction: "out",
       p_quantity: quantity,
       p_unit_cost: 0,
-      p_note: "Pemakaian manual via WhatsApp",
+      p_note: "Pemakaian aktual via WhatsApp",
     });
 
     if (error) return `Pemakaian gagal: ${error.message}`;
@@ -361,11 +359,11 @@ async function executeCommand(
     const remaining = Number(updated?.stock_quantity ?? 0);
     const minimum = Number(updated?.low_stock_threshold ?? 0);
 
-    return `✅ ${ingredient.name} terpakai ${formatQuantity(quantity)} ${
+    return `✅ Pemakaian aktual tercatat.\n${ingredient.name}: -${formatQuantity(
+      quantity
+    )} ${ingredient.unit}\nSisa stok: ${formatQuantity(remaining)} ${
       ingredient.unit
-    }.\nSisa stok: ${formatQuantity(remaining)} ${ingredient.unit}${
-      remaining <= minimum ? " ⚠️ Stok sudah menyentuh batas minimum." : ""
-    }`;
+    }${remaining <= minimum ? "\n⚠️ Stok sudah menyentuh batas minimum." : ""}`;
   }
 
   const addStock = normalized.match(
@@ -381,7 +379,7 @@ async function executeCommand(
     const quantity = parseQuantity(addStock[2]);
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-      return "Jumlah belum terbaca. Contoh: tambah stok | Mayones | 1000";
+      return "Jumlah belum terbaca. Contoh: tambah stok | Kulit Kebab | 100";
     }
 
     const resolved = await resolveIngredient(admin, userId, name);
@@ -408,6 +406,22 @@ async function executeCommand(
     }.\nStok sekarang: ${formatQuantity(current)} ${ingredient.unit}.`;
   }
 
+  if (/^stok\s*$/i.test(normalized)) {
+    if (!(await hasModule(admin, userId, "kebab"))) {
+      return "Modul Operasional Finka tidak aktif di akun ini.";
+    }
+
+    const { data } = await admin
+      .from("kebab_ingredients")
+      .select("id,name,unit,stock_quantity,low_stock_threshold")
+      .eq("user_id", userId)
+      .order("name")
+      .limit(20);
+
+    if (!data?.length) return "Belum ada bahan kebab.";
+    return formatStockList(data);
+  }
+
   const stock = normalized.match(/^stok(?:\s*\|\s*|\s+)(.+)$/i);
 
   if (stock) {
@@ -416,6 +430,8 @@ async function executeCommand(
     }
 
     const query = cleanSearch(stock[1]);
+    if (!query) return "Contoh: stok | Mayones";
+
     const { data } = await admin
       .from("kebab_ingredients")
       .select("id,name,unit,stock_quantity,low_stock_threshold")
@@ -425,22 +441,7 @@ async function executeCommand(
       .limit(8);
 
     if (!data?.length) return "Bahan tidak ditemukan.";
-
-    return (
-      "📦 Stok:\n" +
-      data
-        .map(
-          (item: any) =>
-            `• ${item.name}: ${formatQuantity(Number(item.stock_quantity))} ${
-              item.unit
-            }${
-              Number(item.stock_quantity) <= Number(item.low_stock_threshold)
-                ? " ⚠️"
-                : ""
-            }`
-        )
-        .join("\n")
-    );
+    return formatStockList(data);
   }
 
   const productionPipe = normalized.match(
@@ -465,6 +466,10 @@ async function executeCommand(
     if (recipeResult.error) return recipeResult.error;
 
     const recipe = recipeResult.recipe!;
+    const fixedUsage = await getFixedRecipeUsage(admin, userId, recipe.id, qty);
+
+    if (fixedUsage.error) return fixedUsage.error;
+
     const { error } = await admin.rpc("admin_record_kebab_production", {
       p_user_id: userId,
       p_recipe_id: recipe.id,
@@ -475,7 +480,14 @@ async function executeCommand(
 
     if (error) return `Produksi gagal: ${error.message}`;
 
-    return `✅ Produksi ${qty} ${recipe.name} berhasil dicatat dan stok bahan sudah dikurangi.`;
+    const usageText = fixedUsage.items
+      .map(
+        (item) =>
+          `• ${item.name}: -${formatQuantity(item.quantity)} ${item.unit}`
+      )
+      .join("\n");
+
+    return `✅ Produksi ${qty} ${recipe.name} berhasil dicatat.\n\nBahan tetap yang otomatis berkurang:\n${usageText}\n\nBahan yang pemakaiannya berubah-ubah tidak dikurangi otomatis. Catat jumlah aktual, contoh:\n*pakai | Mayones | 1,2*`;
   }
 
   return "Perintah belum dikenali. Ketik *bantuan* untuk melihat contoh.";
@@ -487,6 +499,7 @@ async function resolveIngredient(
   rawName: string
 ): Promise<{ ingredient?: Ingredient; error?: string }> {
   const name = cleanSearch(rawName);
+  if (!name) return { error: "Nama bahan belum diisi." };
 
   const { data: exact } = await admin
     .from("kebab_ingredients")
@@ -540,11 +553,9 @@ async function resolveRecipe(
   admin: AdminClient,
   userId: string,
   rawName: string
-): Promise<{
-  recipe?: { id: string; name: string };
-  error?: string;
-}> {
+): Promise<{ recipe?: Recipe; error?: string }> {
   const name = cleanSearch(rawName);
+  if (!name) return { error: "Nama resep belum diisi." };
 
   const { data: exact } = await admin
     .from("kebab_recipes")
@@ -555,7 +566,7 @@ async function resolveRecipe(
     .limit(1)
     .maybeSingle();
 
-  if (exact) return { recipe: exact };
+  if (exact) return { recipe: exact as Recipe };
 
   const { data } = await admin
     .from("kebab_recipes")
@@ -578,7 +589,81 @@ async function resolveRecipe(
     };
   }
 
-  return { recipe: data[0] };
+  return { recipe: data[0] as Recipe };
+}
+
+async function getFixedRecipeUsage(
+  admin: AdminClient,
+  userId: string,
+  recipeId: string,
+  productionQuantity: number
+): Promise<{
+  items: Array<{ name: string; unit: string; quantity: number }>;
+  error?: string;
+}> {
+  const { data: recipeItems, error } = await admin
+    .from("kebab_recipe_items")
+    .select("ingredient_id,quantity_per_unit")
+    .eq("user_id", userId)
+    .eq("recipe_id", recipeId);
+
+  if (error) return { items: [], error: `Gagal membaca resep: ${error.message}` };
+
+  if (!recipeItems?.length) {
+    return {
+      items: [],
+      error:
+        "Resep belum memiliki komposisi tetap. Tambahkan Beef, Kulit, Kertas, atau bahan lain yang jumlahnya benar-benar pasti melalui website.",
+    };
+  }
+
+  const ingredientIds = recipeItems.map((item: any) => item.ingredient_id);
+  const { data: ingredients, error: ingredientError } = await admin
+    .from("kebab_ingredients")
+    .select("id,name,unit")
+    .eq("user_id", userId)
+    .in("id", ingredientIds);
+
+  if (ingredientError) {
+    return { items: [], error: `Gagal membaca bahan resep: ${ingredientError.message}` };
+  }
+
+  const ingredientById = new Map(
+    (ingredients ?? []).map((item: any) => [item.id, item])
+  );
+
+  const items = recipeItems.flatMap((item: any) => {
+    const ingredient = ingredientById.get(item.ingredient_id);
+    if (!ingredient) return [];
+
+    return [
+      {
+        name: ingredient.name,
+        unit: ingredient.unit,
+        quantity: Number(item.quantity_per_unit) * productionQuantity,
+      },
+    ];
+  });
+
+  return { items };
+}
+
+function formatStockList(data: any[]) {
+  return (
+    "📦 Stok bahan:\n" +
+    data
+      .map(
+        (item) =>
+          `• ${item.name}: ${formatQuantity(Number(item.stock_quantity))} ${
+            item.unit
+          }${
+            Number(item.stock_quantity) <= Number(item.low_stock_threshold)
+              ? " ⚠️"
+              : ""
+          }`
+      )
+      .join("\n")
+  );
 }
 
 function cleanSearch(value: string) {
@@ -604,9 +689,12 @@ function parseMoney(raw: string) {
       : value.endsWith("ribu") || value.endsWith("rb")
       ? 1_000
       : 1;
+
   const numeric = value.replace(/(juta|ribu|jt|rb)$/i, "");
   const normalized =
-    multiplier > 1 ? numeric.replace(",", ".") : numeric.replace(/[.,]/g, "");
+    multiplier > 1
+      ? numeric.replace(/\./g, "").replace(",", ".")
+      : numeric.replace(/[.,]/g, "");
 
   return Number(normalized) * multiplier;
 }
@@ -641,15 +729,27 @@ function todayJakarta() {
 }
 
 function helpText() {
-  return `Perintah Personal Hub:
+  return `WHATSAPP KEBAB V1
 
-KEBAB
-• bahan | Mayones | gram | 5000
-• bahan | Mayones | gram | 5000 | 500
-• pakai | Mayones | 800
-• tambah stok | Mayones | 1000
+PRODUKSI
+• produksi | Kebab Pcs | 50
+Hanya komposisi tetap yang ada di Resep website yang berkurang otomatis, misalnya Beef, Kulit Kebab, dan Kertas Kebab.
+
+PEMAKAIAN AKTUAL
+• pakai | Mayones | 1,2
+• pakai | Saus | 0,8
+• pakai | Minyak Goreng | 1,5
+Gunakan ini untuk bahan yang pemakaiannya berubah-ubah. Jumlah mengikuti satuan bahan di website.
+
+STOK
+• stok
 • stok | Mayones
-• produksi | Kebab Original | 50
+• tambah stok | Kulit Kebab | 100
+
+TAMBAH BAHAN
+• bahan | Mayones | Kg | 5
+• bahan | Mayones | Kg | 5 | 1
+Format terakhir: nama | satuan | stok awal | batas minimum (opsional).
 
 LAINNYA
 • pengeluaran 50rb bensin
@@ -658,8 +758,8 @@ LAINNYA
 • tugas Laporan Basis Data | 2026-09-20
 • tugas minggu ini
 
-Angka desimal bisa memakai koma, contoh 1,5.
-Website tetap menjadi pusat utama untuk edit dan melihat detail data.`;
+Angka desimal boleh memakai koma, contoh 1,5.
+Website tetap menjadi pusat utama untuk mengatur resep dan melihat detail data.`;
 }
 
 async function sendWhatsAppText(to: string, body: string) {
