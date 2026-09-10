@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   Bell,
   BookOpenCheck,
@@ -51,7 +51,13 @@ export function MobileAppChrome({
   name: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const available = allItems.filter(
     (item) => !item.module || modules.includes(item.module)
@@ -70,14 +76,30 @@ export function MobileAppChrome({
   const primary = primaryCandidates.filter(Boolean).slice(0, 4) as NavItem[];
   const primaryHrefs = new Set(primary.map((item) => item.href));
   const secondary = available.filter((item) => !primaryHrefs.has(item.href));
+  const activePath = pendingHref || pathname;
 
   const current =
-    available.find((item) => isActive(pathname, item.href)) ?? dashboard;
+    available.find((item) => isActive(activePath, item.href)) ?? dashboard;
   const CurrentIcon = current.icon;
   const firstName = name.trim().split(/\s+/)[0] || "Kamu";
 
+  function warmRoute(href: string) {
+    if (!isActive(pathname, href)) router.prefetch(href);
+  }
+
+  function beginNavigation(href: string) {
+    if (!isActive(pathname, href)) setPendingHref(href);
+    setMoreOpen(false);
+  }
+
   return (
     <>
+      {pendingHref && (
+        <div className="fixed inset-x-0 top-0 z-[90] h-0.5 overflow-hidden bg-orange-100 lg:hidden">
+          <div className="h-full w-2/3 animate-pulse bg-orange-600" />
+        </div>
+      )}
+
       <header className="mobile-app-header sticky top-0 z-40 border-b border-black/5 bg-[#f7f5f0]/92 px-4 pb-3 pt-[calc(.75rem+env(safe-area-inset-top))] backdrop-blur-xl lg:hidden">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -100,9 +122,13 @@ export function MobileAppChrome({
           <div className="flex items-center gap-2">
             <Link
               href="/notifications"
+              prefetch
+              onPointerEnter={() => warmRoute("/notifications")}
+              onTouchStart={() => warmRoute("/notifications")}
+              onClick={() => beginNavigation("/notifications")}
               aria-label="Buka notifikasi"
               className={`flex h-10 w-10 items-center justify-center rounded-[14px] border shadow-sm transition ${
-                isActive(pathname, "/notifications")
+                isActive(activePath, "/notifications")
                   ? "border-orange-200 bg-orange-50 text-orange-700"
                   : "border-black/5 bg-white text-neutral-700"
               }`}
@@ -123,12 +149,15 @@ export function MobileAppChrome({
         <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {primary.map((item) => {
             const Icon = item.icon;
-            const active = isActive(pathname, item.href);
+            const active = isActive(activePath, item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMoreOpen(false)}
+                prefetch
+                onPointerEnter={() => warmRoute(item.href)}
+                onTouchStart={() => warmRoute(item.href)}
+                onClick={() => beginNavigation(item.href)}
                 className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-extrabold transition active:scale-95 ${
                   active
                     ? "bg-orange-50 text-orange-700"
@@ -145,7 +174,7 @@ export function MobileAppChrome({
             type="button"
             onClick={() => setMoreOpen(true)}
             className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[10px] font-extrabold transition active:scale-95 ${
-              secondary.some((item) => isActive(pathname, item.href))
+              secondary.some((item) => isActive(activePath, item.href))
                 ? "bg-orange-50 text-orange-700"
                 : "text-neutral-500"
             }`}
@@ -187,6 +216,9 @@ export function MobileAppChrome({
               {modules.includes("kebab") && (
                 <Link
                   href="/kebab-finka"
+                  prefetch
+                  onPointerEnter={() => router.prefetch("/kebab-finka")}
+                  onTouchStart={() => router.prefetch("/kebab-finka")}
                   onClick={() => setMoreOpen(false)}
                   className="mb-4 flex items-center justify-between rounded-2xl bg-neutral-950 p-4 text-white shadow-lg"
                 >
@@ -208,12 +240,15 @@ export function MobileAppChrome({
               <div className="grid grid-cols-2 gap-2">
                 {secondary.map((item) => {
                   const Icon = item.icon;
-                  const active = isActive(pathname, item.href);
+                  const active = isActive(activePath, item.href);
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={() => setMoreOpen(false)}
+                      prefetch
+                      onPointerEnter={() => warmRoute(item.href)}
+                      onTouchStart={() => warmRoute(item.href)}
+                      onClick={() => beginNavigation(item.href)}
                       className={`flex min-h-24 flex-col justify-between rounded-2xl border p-3.5 shadow-sm transition active:scale-[.98] ${
                         active
                           ? "border-orange-200 bg-orange-50 text-orange-800"
