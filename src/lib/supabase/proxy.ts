@@ -36,6 +36,7 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/login") ||
     path.startsWith("/api/whatsapp") ||
     path.startsWith("/api/cron/kebab-stock-alert") ||
+    path.startsWith("/api/push/subscribe") ||
     path.startsWith("/auth") ||
     path === "/manifest.webmanifest" ||
     path === "/sw.js";
@@ -44,10 +45,7 @@ export async function updateSession(request: NextRequest) {
     const next = request.nextUrl.clone();
     next.pathname = "/login";
     next.search = "";
-    next.searchParams.set(
-      "next",
-      `${path}${request.nextUrl.search}`
-    );
+    next.searchParams.set("next", `${path}${request.nextUrl.search}`);
     return NextResponse.redirect(next);
   }
 
