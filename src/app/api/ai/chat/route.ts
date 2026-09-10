@@ -37,12 +37,15 @@ function pageContext(pathname: string) {
 }
 
 function normalizeMessages(rawMessages: IncomingMessage[]) {
-  const normalized: GeminiMessage[] = rawMessages
+  const normalized = rawMessages
     .slice(-MAX_MESSAGES)
-    .map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      content: typeof message.content === "string" ? message.content.trim().slice(0, MAX_MESSAGE_CHARS) : "",
-    }))
+    .map<GeminiMessage>((message) => {
+      const role: GeminiMessage["role"] = message.role === "assistant" ? "model" : "user";
+      return {
+        role,
+        content: typeof message.content === "string" ? message.content.trim().slice(0, MAX_MESSAGE_CHARS) : "",
+      };
+    })
     .filter((message) => message.content.length > 0);
 
   while (normalized[0]?.role === "model") normalized.shift();
