@@ -2,10 +2,12 @@ import Link from "next/link";
 import { ArrowLeft, GraduationCap } from "lucide-react";
 
 import { ThesisDesktopWorkspace } from "@/components/thesis-desktop-workspace";
+import { ThesisDriveUploader } from "@/components/thesis-drive-uploader";
 import { ThesisIntro } from "@/components/thesis-intro";
 import { ThesisMobileWorkspace } from "@/components/thesis-mobile-workspace";
 import { validThesisTab } from "@/features/academic/thesis-nav";
 import { requireModule } from "@/lib/auth";
+import { getGoogleDriveStatus } from "@/lib/google-drive";
 
 export default async function ThesisPage({
   searchParams,
@@ -14,7 +16,7 @@ export default async function ThesisPage({
 }) {
   const params = await searchParams;
   const tab = validThesisTab(params.tab);
-  const { supabase, profile } = await requireModule("academic");
+  const { supabase, profile, userId } = await requireModule("academic");
   const workspaceRes = await supabase.from("thesis_workspaces").select("*").maybeSingle();
 
   if (workspaceRes.error) {
@@ -34,6 +36,9 @@ export default async function ThesisPage({
 
   const workspace = workspaceRes.data;
   const firstName = (profile?.display_name || "Kamu").trim().split(/\s+/)[0];
+  const driveStatus = tab === "file"
+    ? await getGoogleDriveStatus(userId)
+    : { configured: false, connected: false, email: "", folderUrl: "" };
   let rows: any[] = [];
   let overview = {
     supervisions: [] as any[],
@@ -96,6 +101,16 @@ export default async function ThesisPage({
       <div className="hidden lg:block">
         <ThesisDesktopWorkspace {...sharedProps} />
       </div>
+      {tab === "file" && (
+        <div className="mt-4">
+          <ThesisDriveUploader
+            configured={driveStatus.configured}
+            connected={driveStatus.connected}
+            email={driveStatus.email}
+            folderUrl={driveStatus.folderUrl || workspace?.drive_folder_url || ""}
+          />
+        </div>
+      )}
     </>
   );
 }
