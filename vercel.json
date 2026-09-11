@@ -6,6 +6,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/cron/smart-reminders",
+      "schedule": "15 2 * * *"
+    },
+    {
       "path": "/api/cron/kebab-stock-alert",
       "schedule": "0 6 * * *"
     }
