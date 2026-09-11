@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  BellRing,
   Bot,
   BookOpen,
   ChevronRight,
@@ -14,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 
-const UPDATE_VERSION = "2026-09-11-v1";
+const UPDATE_VERSION = "2026-09-11-v2";
 
 const updates = [
   {
@@ -65,6 +66,13 @@ const updates = [
     title: "Belanja & Keuangan terhubung",
     description:
       "Pembelian baru dari menu Belanja otomatis masuk sebagai Pengeluaran di Keuangan. Keuangan menjadi pusat arus uang sehingga tidak perlu input dua kali.",
+  },
+  {
+    version: "v1.7",
+    icon: BellRing,
+    title: "Pengingat otomatis jam 09.00",
+    description:
+      "OURJOURNAL mengecek deadline setiap pagi: mengingatkan H-2, hari jatuh tempo, dan data yang sudah lewat tempo. Finka juga mendapat pengingat Kebab harian Senin–Sabtu untuk produksi dan Minggu untuk belanja bahan.",
   },
 ] as const;
 
@@ -164,7 +172,7 @@ export function WhatsNewPopup({ firstName }: { firstName: string }) {
               OURJOURNAL makin lengkap ✨
             </h2>
             <p className="mt-1.5 text-sm leading-5 text-neutral-500">
-              Hai {firstName}, ini rangkuman perubahan sejak navbar mobile Liquid Glass sampai integrasi Belanja & Keuangan terbaru.
+              Hai {firstName}, ini rangkuman perubahan sejak navbar mobile Liquid Glass sampai pengingat otomatis pukul 09.00 WIB.
             </p>
           </div>
 
@@ -196,7 +204,7 @@ export function WhatsNewPopup({ firstName }: { firstName: string }) {
             <ChevronRight size={19} />
           </button>
           <p className="mt-2 text-center text-[11px] text-neutral-400">
-            Popup update ini hanya muncul otomatis satu kali di perangkatmu.
+            Popup update ini hanya muncul otomatis satu kali untuk versi terbaru di perangkatmu.
           </p>
         </div>
       </section>

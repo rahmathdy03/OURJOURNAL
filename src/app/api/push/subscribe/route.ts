@@ -25,18 +25,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: moduleAccess } = await supabase
-    .from("user_modules")
-    .select("module_key")
-    .eq("user_id", userId)
-    .eq("module_key", "kebab")
-    .eq("enabled", true)
-    .maybeSingle();
-
-  if (!moduleAccess) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   let body: any;
   try {
     body = await request.json();

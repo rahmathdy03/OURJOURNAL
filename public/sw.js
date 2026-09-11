@@ -13,20 +13,23 @@ self.addEventListener("push", (event) => {
     data = event.data ? event.data.json() : {};
   } catch {
     data = {
-      title: "Kebab Finka",
-      body: event.data ? event.data.text() : "Ada pembaruan stok.",
+      title: "OURJOURNAL",
+      body: event.data ? event.data.text() : "Ada pengingat baru.",
     };
   }
 
-  const title = data.title || "Kebab Finka";
+  const targetUrl = data.url || "/notifications";
+  const kebabNotification = targetUrl.startsWith("/kebab");
+  const fallbackIcon = kebabNotification ? "/icons/kebab-finka-192.png" : "/icon";
+  const title = data.title || (kebabNotification ? "Kebab Finka" : "OURJOURNAL");
   const options = {
-    body: data.body || "Ada pembaruan stok.",
-    icon: "/icons/kebab-finka-192.png",
-    badge: "/icons/kebab-finka-192.png",
-    tag: data.tag || "kebab-finka",
+    body: data.body || "Ada pengingat baru.",
+    icon: data.icon || fallbackIcon,
+    badge: data.badge || data.icon || fallbackIcon,
+    tag: data.tag || "ourjournal",
     renotify: false,
     data: {
-      url: data.url || "/kebab-finka",
+      url: targetUrl,
     },
   };
 
@@ -36,7 +39,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = new URL(
-    event.notification.data?.url || "/kebab-finka",
+    event.notification.data?.url || "/notifications",
     self.location.origin
   ).href;
 
