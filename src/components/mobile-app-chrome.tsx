@@ -13,6 +13,7 @@ import {
   BookOpenCheck,
   ChartNoAxesCombined,
   GraduationCap,
+  History,
   Home,
   LogOut,
   MoreHorizontal,
@@ -40,6 +41,7 @@ const allItems: NavItem[] = [
   { href: "/academic", label: "Kuliah", shortLabel: "Kuliah", icon: GraduationCap, module: "academic" },
   { href: "/kebab", label: "Operasional Finka", shortLabel: "Kebab", icon: BookOpenCheck, module: "kebab" },
   { href: "/reports", label: "Laporan", shortLabel: "Laporan", icon: ChartNoAxesCombined },
+  { href: "/activity", label: "Aktivitas", shortLabel: "Aktivitas", icon: History },
   { href: "/notifications", label: "Notifikasi", shortLabel: "Notifikasi", icon: Bell },
   { href: "/settings", label: "Pengaturan", shortLabel: "Pengaturan", icon: Settings },
 ];
