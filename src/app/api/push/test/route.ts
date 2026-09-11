@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   sendWebPush,
   WebPushError,
@@ -30,31 +30,18 @@ export async function POST() {
   }
 
   const admin = createAdminClient();
-
-  const { data: moduleRow } = await admin
-    .from("user_modules")
-    .select("user_id")
-    .eq("user_id", userId)
-    .eq("module_key", "kebab")
-    .eq("enabled", true)
-    .maybeSingle();
-
-  if (!moduleRow) {
-    return NextResponse.json({ error: "Modul kebab tidak aktif." }, { status: 403 });
-  }
-
   const { data: subscriptions, error: subscriptionError } = await admin
     .from("push_subscriptions")
     .select("id,endpoint,p256dh,auth")
     .eq("user_id", userId);
 
   if (subscriptionError) {
-    return NextResponse.json({ error: subscriptionError.message }, { status: 500 });
+    return NextResponse.json({ error: "Gagal membaca perangkat push." }, { status: 500 });
   }
 
   if (!subscriptions?.length) {
     return NextResponse.json(
-      { error: "Belum ada perangkat yang terdaftar untuk push notification." },
+      { error: "Belum ada perangkat push yang aktif. Aktifkan push terlebih dahulu." },
       { status: 404 }
     );
   }
@@ -73,10 +60,11 @@ export async function POST() {
 
     try {
       await sendWebPush(subscription, {
-        title: "Kebab Finka",
-        body: "✅ Notifikasi tes berhasil. Push notification di HP sudah aktif.",
-        url: "/kebab-finka",
-        tag: `kebab-finka-test-${Date.now()}`,
+        title: "OURJOURNAL · Uji notifikasi 🔔",
+        body: "Berhasil! Push notification di perangkatmu sudah terhubung dan siap menerima pengingat.",
+        url: "/notifications",
+        tag: `ourjournal-push-test-${Date.now()}`,
+        icon: "/icon",
       });
       sent += 1;
     } catch (caught) {
@@ -94,7 +82,7 @@ export async function POST() {
   if (sent === 0) {
     return NextResponse.json(
       {
-        error: failures[0]?.message || "Tidak ada push yang berhasil dikirim.",
+        error: "Notifikasi uji coba belum berhasil dikirim. Coba nonaktifkan lalu aktifkan push kembali.",
         failures,
       },
       { status: 502 }
