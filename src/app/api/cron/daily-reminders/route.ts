@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const JAKARTA_TIME_ZONE = "Asia/Jakarta";
 const DAY_MS = 86_400_000;
 
-type ReminderStage = "h2" | "due" | "overdue";
+type ReminderStage = "h2" | "h1" | "due" | "p1" | "p2" | "overdue";
 
 type Reminder = {
   source: string;
@@ -59,6 +59,17 @@ function stageForDate(dueDate: string | null | undefined, today: string, allowOv
   return null;
 }
 
+function stageForAssignmentDate(dueDate: string | null | undefined, today: string) {
+  if (!dueDate) return null;
+  const days = dayDifference(dueDate, today);
+  if (days === 2) return "h2" as const;
+  if (days === 1) return "h1" as const;
+  if (days === 0) return "due" as const;
+  if (days === -1) return "p1" as const;
+  if (days === -2) return "p2" as const;
+  return null;
+}
+
 function readableDate(date: string) {
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
@@ -70,7 +81,10 @@ function readableDate(date: string) {
 
 function reminderTitle(reminder: Reminder, today: string) {
   if (reminder.stage === "h2") return `2 hari lagi · ${reminder.name}`;
+  if (reminder.stage === "h1") return `Besok jatuh tempo · ${reminder.name}`;
   if (reminder.stage === "due") return `Jatuh tempo hari ini · ${reminder.name}`;
+  if (reminder.stage === "p1") return `Lewat tempo 1 hari · ${reminder.name}`;
+  if (reminder.stage === "p2") return `Lewat tempo 2 hari · ${reminder.name}`;
   const daysLate = Math.abs(dayDifference(reminder.dueDate, today));
   return `Lewat tempo ${daysLate} hari · ${reminder.name}`;
 }
@@ -80,8 +94,17 @@ function reminderMessage(reminder: Reminder, today: string) {
   if (reminder.stage === "h2") {
     return `${reminder.sourceLabel} “${reminder.name}” jatuh tempo 2 hari lagi, ${date}.`;
   }
+  if (reminder.stage === "h1") {
+    return `${reminder.sourceLabel} “${reminder.name}” jatuh tempo besok, ${date}.`;
+  }
   if (reminder.stage === "due") {
     return `${reminder.sourceLabel} “${reminder.name}” jatuh tempo hari ini, ${date}.`;
+  }
+  if (reminder.stage === "p1") {
+    return `${reminder.sourceLabel} “${reminder.name}” sudah lewat tempo 1 hari sejak ${date}.`;
+  }
+  if (reminder.stage === "p2") {
+    return `${reminder.sourceLabel} “${reminder.name}” sudah lewat tempo 2 hari sejak ${date}.`;
   }
   const daysLate = Math.abs(dayDifference(reminder.dueDate, today));
   return `${reminder.sourceLabel} “${reminder.name}” sudah lewat tempo ${daysLate} hari sejak ${date}.`;
@@ -177,18 +200,18 @@ async function collectAcademicReminders(
 
   if (assignments.error) console.error("Reminder academic_assignments", userId, assignments.error);
   for (const row of assignments.data ?? []) {
-    addReminder(
-      reminders,
-      {
-        source: "academic_assignment",
-        sourceId: String(row.id),
-        name: String(row.title),
-        sourceLabel: "Tugas kuliah",
-        dueDate: String(row.due_date),
-        url: "/academic",
-      },
-      today
-    );
+    const dueDate = String(row.due_date);
+    const stage = stageForAssignmentDate(dueDate, today);
+    if (!stage) continue;
+    reminders.push({
+      source: "academic_assignment",
+      sourceId: String(row.id),
+      name: String(row.title),
+      sourceLabel: "Tugas kuliah",
+      dueDate,
+      stage,
+      url: "/academic",
+    });
   }
 
   if (events.error) console.error("Reminder academic_events", userId, events.error);
