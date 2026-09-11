@@ -9,13 +9,14 @@ import {
   GraduationCap,
   History,
   LayoutDashboard,
+  ListChecks,
   ShoppingCart,
   Sparkles,
   WalletCards,
   X,
 } from "lucide-react";
 
-const UPDATE_VERSION = "2026-09-11-v2";
+const UPDATE_VERSION = "2026-09-11-v3";
 
 const updates = [
   {
@@ -74,6 +75,13 @@ const updates = [
     description:
       "OURJOURNAL mengecek deadline setiap pagi: mengingatkan H-2, hari jatuh tempo, dan data yang sudah lewat tempo. Finka juga mendapat pengingat Kebab harian Senin–Sabtu untuk produksi dan Minggu untuk belanja bahan.",
   },
+  {
+    version: "v1.8",
+    icon: ListChecks,
+    title: "Catatan progress tugas",
+    description:
+      "Setiap tugas Kuliah sekarang punya tombol Progress. Kamu bisa menambahkan Progress 1, Progress 2, dan seterusnya beserta deskripsinya, lalu melihat riwayat perkembangan tugas.",
+  },
 ] as const;
 
 function UpdateList({ showVersion = false }: { showVersion?: boolean }) {
@@ -94,7 +102,9 @@ function UpdateList({ showVersion = false }: { showVersion?: boolean }) {
                   {version}
                 </span>
               ) : (
-                <span className="text-[10px] font-black text-neutral-300">{String(index + 1).padStart(2, "0")}</span>
+                <span className="text-[10px] font-black text-neutral-300">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
               )}
               <p className="font-black text-neutral-900">{title}</p>
               {showVersion && index === updates.length - 1 && (
@@ -103,7 +113,9 @@ function UpdateList({ showVersion = false }: { showVersion?: boolean }) {
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[13px] leading-[1.45rem] text-neutral-500">{description}</p>
+            <p className="mt-1 text-[13px] leading-[1.45rem] text-neutral-500">
+              {description}
+            </p>
           </div>
         </div>
       ))}
@@ -114,8 +126,11 @@ function UpdateList({ showVersion = false }: { showVersion?: boolean }) {
 export function WhatsNewPopup({ firstName }: { firstName: string }) {
   const [open, setOpen] = useState(false);
   const storageKey = useMemo(
-    () => `ourjournal-whats-new:${UPDATE_VERSION}:${firstName.trim().toLowerCase() || "user"}`,
-    [firstName],
+    () =>
+      `ourjournal-whats-new:${UPDATE_VERSION}:${
+        firstName.trim().toLowerCase() || "user"
+      }`,
+    [firstName]
   );
 
   useEffect(() => {
@@ -168,11 +183,15 @@ export function WhatsNewPopup({ firstName }: { firstName: string }) {
             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[.14em] text-orange-600">
               <Sparkles size={13} /> Update terbaru
             </div>
-            <h2 id="whats-new-title" className="text-2xl font-black tracking-tight text-neutral-950">
+            <h2
+              id="whats-new-title"
+              className="text-2xl font-black tracking-tight text-neutral-950"
+            >
               OURJOURNAL makin lengkap ✨
             </h2>
             <p className="mt-1.5 text-sm leading-5 text-neutral-500">
-              Hai {firstName}, ini rangkuman perubahan sejak navbar mobile Liquid Glass sampai pengingat otomatis pukul 09.00 WIB.
+              Hai {firstName}, ini rangkuman perubahan sejak navbar mobile
+              Liquid Glass sampai catatan progress tugas terbaru.
             </p>
           </div>
 
@@ -190,7 +209,9 @@ export function WhatsNewPopup({ firstName }: { firstName: string }) {
           <UpdateList />
 
           <div className="mt-2 rounded-[22px] bg-gradient-to-r from-orange-50 to-[#fff8ef] p-4 text-sm leading-5 text-neutral-600">
-            <b className="text-neutral-900">Tetap dipertahankan:</b> Kebab Finka Quick Input masih menjadi shortcut terpisah untuk input produksi dan stok dengan cepat.
+            <b className="text-neutral-900">Tetap dipertahankan:</b> Kebab
+            Finka Quick Input masih menjadi shortcut terpisah untuk input
+            produksi dan stok dengan cepat.
           </div>
         </div>
 
@@ -204,7 +225,8 @@ export function WhatsNewPopup({ firstName }: { firstName: string }) {
             <ChevronRight size={19} />
           </button>
           <p className="mt-2 text-center text-[11px] text-neutral-400">
-            Popup update ini hanya muncul otomatis satu kali untuk versi terbaru di perangkatmu.
+            Popup update ini hanya muncul otomatis satu kali untuk versi terbaru
+            di perangkatmu.
           </p>
         </div>
       </section>
@@ -242,7 +264,9 @@ export function VersionHistoryButton() {
             </p>
           </div>
         </div>
-        <span className="shrink-0 text-sm font-black text-purple-600">Buka</span>
+        <span className="shrink-0 text-sm font-black text-purple-600">
+          Buka
+        </span>
       </button>
 
       {open && (
@@ -258,12 +282,18 @@ export function VersionHistoryButton() {
           <section className="flex max-h-[88dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[30px] border border-white/60 bg-[#fbfaf7] shadow-2xl sm:rounded-[30px]">
             <div className="flex items-start justify-between gap-4 border-b border-black/5 bg-white/75 px-5 pb-4 pt-5 backdrop-blur-xl sm:px-6">
               <div className="min-w-0">
-                <p className="text-[11px] font-black uppercase tracking-[.16em] text-purple-600">OURJOURNAL</p>
-                <h2 id="version-history-title" className="mt-1 text-xl font-black text-neutral-950">
+                <p className="text-[11px] font-black uppercase tracking-[.16em] text-purple-600">
+                  OURJOURNAL
+                </p>
+                <h2
+                  id="version-history-title"
+                  className="mt-1 text-xl font-black text-neutral-950"
+                >
                   Riwayat versi
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-neutral-500">
-                  Perjalanan update aplikasi dari awal navbar mobile baru sampai fitur terbaru.
+                  Perjalanan update aplikasi dari awal navbar mobile baru sampai
+                  fitur terbaru.
                 </p>
               </div>
               <button
@@ -279,7 +309,9 @@ export function VersionHistoryButton() {
             <div className="overflow-y-auto px-4 py-4 sm:px-6">
               <UpdateList showVersion />
               <div className="mt-2 rounded-[22px] bg-gradient-to-r from-orange-50 to-[#fff8ef] p-4 text-sm leading-5 text-neutral-600">
-                <b className="text-neutral-900">Kebab Finka Quick Input</b> tetap berdiri sebagai shortcut terpisah supaya produksi, pakai bahan, tambah stok, dan cek stok tetap bisa dilakukan secepat mungkin.
+                <b className="text-neutral-900">Kebab Finka Quick Input</b> tetap
+                berdiri sebagai shortcut terpisah supaya produksi, pakai bahan,
+                tambah stok, dan cek stok tetap bisa dilakukan secepat mungkin.
               </div>
             </div>
 
