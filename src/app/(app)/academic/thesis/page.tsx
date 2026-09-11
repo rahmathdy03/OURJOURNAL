@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, GraduationCap } from "lucide-react";
 
 import { ThesisDesktopWorkspace } from "@/components/thesis-desktop-workspace";
+import { ThesisDriveUploader } from "@/components/thesis-drive-uploader";
 import { ThesisIntro } from "@/components/thesis-intro";
 import { ThesisMobileWorkspace } from "@/components/thesis-mobile-workspace";
 import { validThesisTab } from "@/features/academic/thesis-nav";
@@ -87,7 +88,6 @@ export default async function ThesisPage({
     workspace,
     rows,
     overview,
-    driveStatus,
     saved: params.saved,
     error: params.error,
   };
@@ -101,6 +101,16 @@ export default async function ThesisPage({
       <div className="hidden lg:block">
         <ThesisDesktopWorkspace {...sharedProps} />
       </div>
+      {tab === "file" && (
+        <div className="mt-4">
+          <ThesisDriveUploader
+            configured={driveStatus.configured}
+            connected={driveStatus.connected}
+            email={driveStatus.email}
+            folderUrl={driveStatus.folderUrl || workspace?.drive_folder_url || ""}
+          />
+        </div>
+      )}
     </>
   );
 }
