@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, CheckCircle2, LoaderCircle } from "lucide-react";
+import { Bell, BellOff, BellRing, CheckCircle2, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Status = "checking" | "unsupported" | "blocked" | "disabled" | "enabled";
@@ -39,6 +39,7 @@ async function saveSubscription(subscription: PushSubscription) {
 export function PushNotificationControl() {
   const [status, setStatus] = useState<Status>("checking");
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -117,7 +118,7 @@ export function PushNotificationControl() {
 
       await saveSubscription(subscription);
       setStatus("enabled");
-      setMessage("Notifikasi aktif. OURJOURNAL akan mengecek pengingat setiap pukul 09.00 WIB.");
+      setMessage("Notifikasi aktif. OURJOURNAL siap mengirim pengingat otomatis ke perangkat ini.");
     } catch (caught) {
       setStatus("disabled");
       setMessage(caught instanceof Error ? caught.message : "Gagal mengaktifkan notifikasi.");
@@ -149,6 +150,22 @@ export function PushNotificationControl() {
     }
   }
 
+  async function testPush() {
+    setTesting(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/push/test", { method: "POST" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Gagal mengirim notifikasi uji coba.");
+      const sent = Number(result.sent || 1);
+      setMessage(`Notifikasi uji coba dikirim ke ${sent} perangkat. Cek banner/notifikasi perangkatmu.`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Gagal mengirim notifikasi uji coba.");
+    } finally {
+      setTesting(false);
+    }
+  }
+
   const enabled = status === "enabled";
 
   return (
@@ -160,16 +177,21 @@ export function PushNotificationControl() {
         <div className="min-w-0 flex-1">
           <p className="font-black text-neutral-900">Notifikasi pengingat</p>
           <p className="mt-1 text-sm leading-5 text-neutral-500">
-            Cek otomatis pukul 09.00 WIB: H-2, hari jatuh tempo, dan lewat tempo untuk data yang punya deadline.
+            Tugas Kuliah diingatkan pada H-2, H-1, hari H, H+1, dan H+2. Pengingat otomatis diproses setiap pagi.
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {status === "checking" ? (
               <span className="inline-flex items-center gap-2 text-xs font-bold text-neutral-500"><LoaderCircle className="animate-spin" size={15}/> Mengecek…</span>
             ) : enabled ? (
-              <button type="button" onClick={disable} disabled={busy} className="btn-soft">
-                {busy ? <LoaderCircle className="animate-spin" size={15}/> : <BellOff size={15}/>} Nonaktifkan push
-              </button>
+              <>
+                <button type="button" onClick={disable} disabled={busy || testing} className="btn-soft">
+                  {busy ? <LoaderCircle className="animate-spin" size={15}/> : <BellOff size={15}/>} Nonaktifkan push
+                </button>
+                <button type="button" onClick={testPush} disabled={busy || testing} className="btn-soft">
+                  {testing ? <LoaderCircle className="animate-spin" size={15}/> : <BellRing size={15}/>} Kirim notifikasi uji coba
+                </button>
+              </>
             ) : status === "unsupported" ? (
               <span className="text-xs font-bold text-neutral-500">Push notification belum didukung di browser ini.</span>
             ) : status === "blocked" ? (
