@@ -35,10 +35,11 @@ export async function updateSession(request: NextRequest) {
   const isPublic =
     path.startsWith("/login") ||
     path.startsWith("/api/whatsapp") ||
-    path.startsWith("/api/cron/kebab-stock-alert") ||
+    path.startsWith("/api/cron/") ||
     path.startsWith("/api/push/subscribe") ||
     path.startsWith("/auth") ||
     path === "/manifest.webmanifest" ||
+    path === "/offline.html" ||
     path === "/sw.js";
 
   if (!user && !isPublic) {
