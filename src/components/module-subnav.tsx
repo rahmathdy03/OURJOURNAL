@@ -14,12 +14,9 @@ export function ModuleSubnav({ items }: { items: { href: string; label: string }
   }, [pathname]);
 
   useEffect(() => {
-    const targets = items.filter((item) => item.href !== pathname);
-    const timers = targets.map((item, index) =>
-      window.setTimeout(() => router.prefetch(item.href), index * 35)
-    );
-
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
+    for (const item of items) {
+      if (item.href !== pathname) router.prefetch(item.href);
+    }
   }, [items, pathname, router]);
 
   const activePath = pendingHref || pathname;
