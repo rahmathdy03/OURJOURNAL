@@ -3,6 +3,15 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+const kebabRoutes = [
+  "/kebab",
+  "/kebab/ingredients",
+  "/kebab/recipes",
+  "/kebab/production",
+  "/kebab/purchases",
+  "/kebab/stock",
+];
+
 export function AppPrefetch({
   modules,
 }: {
@@ -14,7 +23,7 @@ export function AppPrefetch({
   useEffect(() => {
     const routes = [
       "/dashboard",
-      ...(modules.includes("kebab") ? ["/kebab"] : []),
+      ...(modules.includes("kebab") ? kebabRoutes : []),
       ...(modules.includes("finance") ? ["/finance"] : []),
       ...(modules.includes("academic") ? ["/academic"] : []),
       ...(modules.includes("shopping") ? ["/shopping"] : []),
@@ -23,15 +32,19 @@ export function AppPrefetch({
       "/settings",
     ].filter((route, index, list) => route !== pathname && list.indexOf(route) === index);
 
-    // Dashboard is the heaviest and most frequently revisited page, so warm it first.
+    const inKebab = pathname === "/kebab" || pathname.startsWith("/kebab/");
     const prioritized = routes.sort((a, b) => {
-      if (a === "/dashboard") return -1;
-      if (b === "/dashboard") return 1;
-      return 0;
+      const score = (route: string) => {
+        if (inKebab && route.startsWith("/kebab")) return 0;
+        if (route === "/dashboard") return 1;
+        if (route === "/kebab") return 2;
+        return 3;
+      };
+      return score(a) - score(b);
     });
 
     const timers = prioritized.map((route, index) =>
-      window.setTimeout(() => router.prefetch(route), index * 90)
+      window.setTimeout(() => router.prefetch(route), index * 60)
     );
 
     return () => timers.forEach((timer) => window.clearTimeout(timer));
